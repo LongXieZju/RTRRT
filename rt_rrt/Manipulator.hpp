@@ -78,10 +78,11 @@ public:
     void insertNode(Eigen::MatrixXd& new_node, int& nearest_node_ind, int& new_node_ind);
     void findPath(int new_node_ind);
     
-//    void chooseParent(Eigen::MatrixXd& new_node, Eigen::MatrixXd& neighbor_nodes, int& nearest_node_ind, Eigen::MatrixXd& obs_position);
-//    void rewire(Eigen::MatrixXd& new_node, Eigen::MatrixXd& neighbor_nodes, Eigen::MatrixXd& obs_position);
-    double sumCost(double& nearest_node_ind, int& sum_cost);
-    double sumCost(int& nearest_node_ind, int& sum_cost);
+    void chooseParent(Eigen::MatrixXd& new_node, std::vector<std::vector<int> >& neighbor_nodes,
+                      int& nearest_node_ind, Eigen::MatrixXd& obs_position, int& new_node_ind);
+    void rewire(Eigen::MatrixXd& new_node, std::vector<std::vector<int> >& neighbor_nodes, Eigen::MatrixXd& obs_position);
+    double sumCost(int& nearest_node_ind, double& sum_cost);
+//    double sumCost(int& nearest_node_ind, double& sum_cost);
 };
 
 #endif /* Manipulator_hpp */
