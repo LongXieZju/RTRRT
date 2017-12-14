@@ -8,6 +8,12 @@
 
 /* Begin PBXBuildFile section */
 		F89BDF761FE1C9310083E15A /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F89BDF751FE1C9310083E15A /* main.cpp */; };
+		F89BDF841FE1CEB80083E15A /* Manipulator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F89BDF821FE1CEB80083E15A /* Manipulator.cpp */; };
+		F89BDF871FE1D0B00083E15A /* flann_test.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F89BDF861FE1D0B00083E15A /* flann_test.cpp */; };
+		F89BDF8A1FE1E0D10083E15A /* VREP.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F89BDF881FE1E0D10083E15A /* VREP.cpp */; };
+		F89BDF911FE2406A0083E15A /* VREP_arm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F89BDF8F1FE2406A0083E15A /* VREP_arm.cpp */; };
+		F89BDF931FE240EA0083E15A /* manipulator_test.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F89BDF921FE240EA0083E15A /* manipulator_test.cpp */; };
+		F89BDF951FE241C40083E15A /* rt_rrt.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F89BDF941FE241C40083E15A /* rt_rrt.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -25,6 +31,16 @@
 /* Begin PBXFileReference section */
 		F89BDF721FE1C9310083E15A /* rt_rrt */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = rt_rrt; sourceTree = BUILT_PRODUCTS_DIR; };
 		F89BDF751FE1C9310083E15A /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
+		F89BDF821FE1CEB80083E15A /* Manipulator.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Manipulator.cpp; sourceTree = "<group>"; };
+		F89BDF831FE1CEB80083E15A /* Manipulator.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Manipulator.hpp; sourceTree = "<group>"; };
+		F89BDF851FE1CF1D0083E15A /* nodeStruct.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = nodeStruct.h; sourceTree = "<group>"; };
+		F89BDF861FE1D0B00083E15A /* flann_test.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = flann_test.cpp; sourceTree = "<group>"; };
+		F89BDF881FE1E0D10083E15A /* VREP.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = VREP.cpp; sourceTree = "<group>"; };
+		F89BDF891FE1E0D10083E15A /* VREP.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = VREP.hpp; sourceTree = "<group>"; };
+		F89BDF8F1FE2406A0083E15A /* VREP_arm.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = VREP_arm.cpp; sourceTree = "<group>"; };
+		F89BDF901FE2406A0083E15A /* VREP_arm.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = VREP_arm.hpp; sourceTree = "<group>"; };
+		F89BDF921FE240EA0083E15A /* manipulator_test.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = manipulator_test.cpp; sourceTree = "<group>"; };
+		F89BDF941FE241C40083E15A /* rt_rrt.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = rt_rrt.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -58,6 +74,16 @@
 			isa = PBXGroup;
 			children = (
 				F89BDF751FE1C9310083E15A /* main.cpp */,
+				F89BDF861FE1D0B00083E15A /* flann_test.cpp */,
+				F89BDF821FE1CEB80083E15A /* Manipulator.cpp */,
+				F89BDF851FE1CF1D0083E15A /* nodeStruct.h */,
+				F89BDF831FE1CEB80083E15A /* Manipulator.hpp */,
+				F89BDF881FE1E0D10083E15A /* VREP.cpp */,
+				F89BDF891FE1E0D10083E15A /* VREP.hpp */,
+				F89BDF8F1FE2406A0083E15A /* VREP_arm.cpp */,
+				F89BDF921FE240EA0083E15A /* manipulator_test.cpp */,
+				F89BDF941FE241C40083E15A /* rt_rrt.cpp */,
+				F89BDF901FE2406A0083E15A /* VREP_arm.hpp */,
 			);
 			path = rt_rrt;
 			sourceTree = "<group>";
@@ -119,6 +145,12 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F89BDF911FE2406A0083E15A /* VREP_arm.cpp in Sources */,
+				F89BDF841FE1CEB80083E15A /* Manipulator.cpp in Sources */,
+				F89BDF871FE1D0B00083E15A /* flann_test.cpp in Sources */,
+				F89BDF951FE241C40083E15A /* rt_rrt.cpp in Sources */,
+				F89BDF8A1FE1E0D10083E15A /* VREP.cpp in Sources */,
+				F89BDF931FE240EA0083E15A /* manipulator_test.cpp in Sources */,
 				F89BDF761FE1C9310083E15A /* main.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -165,8 +197,8 @@
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_PREPROCESSOR_DEFINITIONS = (
-					"DEBUG=1",
-					"$(inherited)",
+					"MAX_EXT_API_CONNECTIONS=255",
+					"NON_MATLAB_PARSING=1",
 				);
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
@@ -174,6 +206,12 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = (
+					/usr/local/include,
+					"$(PROJECT_DIR)/rt_rrt",
+					"/Applications/V-REP_PRO_EDU_V3_4_0_Mac/programming/include",
+					"/Applications/V-REP_PRO_EDU_V3_4_0_Mac/programming/remoteApi",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 10.12;
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -217,12 +255,22 @@
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"MAX_EXT_API_CONNECTIONS=255",
+					"NON_MATLAB_PARSING=1",
+				);
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
 				GCC_WARN_UNDECLARED_SELECTOR = YES;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = (
+					/usr/local/include,
+					"$(PROJECT_DIR)/rt_rrt",
+					"/Applications/V-REP_PRO_EDU_V3_4_0_Mac/programming/include",
+					"/Applications/V-REP_PRO_EDU_V3_4_0_Mac/programming/remoteApi",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 10.12;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				SDKROOT = macosx;
