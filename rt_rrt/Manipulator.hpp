@@ -30,10 +30,11 @@ public:
     int node_added;
     int obstacle_num;
     int root_node;
+    double rewire_radius;
     float arm_radius;
     float goal_bais;
     float node_max_step;
-    float obs_radius[3] = {0.05, 0.1, 0.07};
+    float obs_radius[3] = {0.06, 0.1, 0.07}; // +0.02
     //    float obs_radius[3] = {0.11, 0.2, 0.07};
     float link_length[3] = {0.29126, 0.32363, 0.15512};
     std::stack<int> back_trace;
@@ -81,8 +82,7 @@ public:
     void chooseParent(Eigen::MatrixXd& new_node, std::vector<std::vector<int> >& neighbor_nodes,
                       int& nearest_node_ind, Eigen::MatrixXd& obs_position, int& new_node_ind);
     void rewire(Eigen::MatrixXd& new_node, std::vector<std::vector<int> >& neighbor_nodes, Eigen::MatrixXd& obs_position);
-    double sumCost(int& nearest_node_ind, double& sum_cost);
-//    double sumCost(int& nearest_node_ind, double& sum_cost);
+    double sumCost(int& nearest_node_ind, double sum_cost);
 };
 
 #endif /* Manipulator_hpp */

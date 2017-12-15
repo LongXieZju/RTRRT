@@ -68,6 +68,18 @@ Eigen::MatrixXd VREP::getPosition(int handle){
     return result;
 }
 
+void VREP::setPosition(int handle, Eigen::MatrixXd& position){
+    float position_temp[3];
+    position_temp[0] = position(0,0);
+    position_temp[1] = position(1,0);
+    position_temp[2] = position(2,0);
+    int s = simxSetObjectPosition(VREP::clientID, handle, -1, position_temp, VREP::mode);
+    if(s != 0){
+        std::cout << "Can not Set Position" << std::endl;
+        throw("Can not Set Position");
+    }
+}
+
 void VREP::setJointPos(int handle, float joint){
     int s = simxSetJointTargetPosition(VREP::clientID, handle, joint, VREP::mode);
     if(s != 0)

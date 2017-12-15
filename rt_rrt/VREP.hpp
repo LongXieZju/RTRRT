@@ -24,6 +24,7 @@ public:
     void simSleep(int time);
     int getHandle(const char* name);
     Eigen::MatrixXd getPosition(int handle);
+    void setPosition(int handle, Eigen::MatrixXd& position);
     void setJointPos(int handle, float joint);
 };
 

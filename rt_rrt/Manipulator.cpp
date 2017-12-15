@@ -16,18 +16,20 @@ Manipulator::Manipulator(Eigen::MatrixXd dh_param){
     Eigen::MatrixXd q_init = Eigen::MatrixXd::Zero(7,1);
     setJointAngle(q_init);
     setDhParam(dh_param);
-    
+
     Manipulator::goal_bais = 0.03;
     Manipulator::link_num = 7;
-    Manipulator::max_iter = 15000;
+    Manipulator::max_iter = 2000;
     Manipulator::step_div = 2;
     Manipulator::obstacle_num = 3;
-    Manipulator::node_max_step = 0.0462; // sqrt(sum(((1 * pi / 180)*ones(7, 1)).^2))
-    
+//    Manipulator::node_max_step = 0.0462; // sqrt(sum(((1 * pi / 180)*ones(7, 1)).^2))
+    Manipulator::node_max_step = 0.1;
+
     Manipulator::max_ang = 130*M_PI/180 * Eigen::MatrixXd::Ones(Manipulator::link_num, 1);
     Manipulator::min_ang = -45*M_PI/180 * Eigen::MatrixXd::Ones(Manipulator::link_num, 1);
     Manipulator::arm_radius = 0.04;
-    
+    Manipulator::rewire_radius = 0.03;
+
     Manipulator::tree = Eigen::MatrixXd::Zero(Manipulator::link_num, Manipulator::max_iter);
     Manipulator::parent = Eigen::MatrixXd::Zero(1, Manipulator::max_iter);
     Manipulator::children = Eigen::MatrixXd::Zero(1, Manipulator::max_iter);
@@ -131,7 +133,7 @@ Eigen::MatrixXd Manipulator::ikine(Eigen::MatrixXd goal_position){
     Eigen::MatrixXd B = Eigen::MatrixXd::Zero(6, 1);
     Eigen::MatrixXd I = Eigen::MatrixXd::Identity(6, 6);
     Eigen::MatrixXd f;
-    
+
     Eigen::MatrixXd joint_angle(7,1);
     joint_angle << 0, 0, 0, M_PI/2, 0, M_PI/2, 0;
     while(nm_error > stol){
@@ -202,18 +204,10 @@ void Manipulator::getNearestNode_kd(Eigen::MatrixXd& node, NearestNode& nearest_
 }
 
 Eigen::MatrixXd Manipulator::getNeighbors(Eigen::MatrixXd& new_node, int& nearest_node_ind, Eigen::MatrixXd& neighbor_nodes){
-    
+
     Eigen::MatrixXd from;
     return from;
 }
-
-//Eigen::MatrixXd Manipulator::steer(Eigen::MatrixXd new_node, int nearest_node_ind){
-//    //TODO: delete
-//    Eigen::MatrixXd from = Manipulator::tree.col(nearest_node_ind);
-//    Eigen::MatrixXd angle_diff = new_node - from;
-//    Eigen::MatrixXd steer_node = from + angle_diff / angle_diff.norm() * Manipulator::node_max_step;
-//    return steer_node;
-//}
 
 void Manipulator::steer(Eigen::MatrixXd& new_node, int& nearest_node_ind){
     Eigen::MatrixXd from = Manipulator::tree.col(nearest_node_ind);
@@ -221,46 +215,16 @@ void Manipulator::steer(Eigen::MatrixXd& new_node, int& nearest_node_ind){
     new_node = from + angle_diff / angle_diff.norm() * Manipulator::node_max_step;
 }
 
-//int Manipulator::obstacleCollision(Eigen::MatrixXd new_node, int nearest_node_ind, Eigen::MatrixXd obs_position){
-//    Eigen::MatrixXd nearest_node = Manipulator::tree.col(nearest_node_ind);
-//    Eigen::MatrixXd dist_temp = new_node - nearest_node;
-//    double dist = dist_temp.norm();
-//    Eigen::MatrixXd vector = dist_temp/dist;
-//    double step = dist / Manipulator::step_div;
-//
-//    Eigen::MatrixXd state_angle;
-//    Eigen::MatrixXd joint_position;
-//    Eigen::MatrixXd ob_dist(Manipulator::obstacle_num, 1);
-//
-//    Eigen::MatrixXd link_dist;
-//    Eigen::MatrixXd obs_dist;
-//    int collision;
-//    for(int i = 0; i < Manipulator::obstacle_num; ++i){
-//        for(int j = 1; j <= Manipulator::step_div; ++j){
-//            state_angle = nearest_node + j*step*vector;
-//            joint_position = Manipulator::fkine(state_angle);
-//            ob_dist(0,0) = Manipulator::linkObstacleCollision(joint_position.col(0), joint_position.col(1), obs_position.col(i));
-//            ob_dist(1,0) = Manipulator::linkObstacleCollision(joint_position.col(1), joint_position.col(2), obs_position.col(i));
-//            ob_dist(2,0) = Manipulator::linkObstacleCollision(joint_position.col(2), joint_position.col(3), obs_position.col(i));
-//            collision = (ob_dist.minCoeff() - Manipulator::arm_radius - Manipulator::obs_radius[i]) > 0;
-//            if(!collision){
-//                return collision;
-//            }
-//        }
-//    }
-//    return 1;
-//}
-
 int Manipulator::obstacleCollision(Eigen::MatrixXd& new_node, int& nearest_node_ind, Eigen::MatrixXd& obs_position){
     Eigen::MatrixXd nearest_node = Manipulator::tree.col(nearest_node_ind);
     Eigen::MatrixXd dist_temp = new_node - nearest_node;
     double dist = dist_temp.norm();
     Eigen::MatrixXd vector = dist_temp/dist;
     double step = dist / Manipulator::step_div;
-    
+
     Eigen::MatrixXd state_angle;
     Eigen::MatrixXd joint_position;
-    
+
     Eigen::MatrixXd obs_dist;
     for(int i = 0; i < Manipulator::obstacle_num; ++i){
         for(int j = 1; j <= Manipulator::step_div; ++j){
@@ -302,10 +266,10 @@ int Manipulator::obstacleCollision(Eigen::MatrixXd& new_node, Eigen::MatrixXd& n
     double dist = dist_temp.norm();
     Eigen::MatrixXd vector = dist_temp/dist;
     double step = dist / Manipulator::step_div;
-    
+
     Eigen::MatrixXd state_angle;
     Eigen::MatrixXd joint_position;
-    
+
     Eigen::MatrixXd obs_dist;
     for(int i = 0; i < Manipulator::obstacle_num; ++i){
         for(int j = 1; j <= Manipulator::step_div; ++j){
@@ -342,22 +306,6 @@ int Manipulator::obstacleCollision(Eigen::MatrixXd& new_node, Eigen::MatrixXd& n
     return 1;
 }
 
-//float Manipulator::linkObstacleCollision(Eigen::MatrixXd P1, Eigen::MatrixXd P2, Eigen::MatrixXd obstacle){
-//    Eigen::MatrixXd a1 = obstacle - P1;
-//    Eigen::MatrixXd a2 = P2 - P1;
-//    Eigen::MatrixXd close_P(3, 1);
-//    float k = (a1.transpose() * a2)(0, 0) / a2.norm();//(a2.transpose() * a2)(0, 0);
-//    if(k <= 0){
-//        close_P = P1;
-//    }else if(k >= 1){
-//        close_P = P2;
-//    }else{
-//        close_P = P1 + k * a2;
-//    }
-//    float ob_dist = (close_P - obstacle).norm();
-//    return ob_dist;
-//}
-
 void Manipulator::insertNode(Eigen::MatrixXd& new_node, int& nearest_node_ind, int& new_node_ind){
     new_node_ind = Manipulator::node_added;
     Manipulator::tree.col(Manipulator::node_added) = new_node;
@@ -385,7 +333,9 @@ void Manipulator::chooseParent(Eigen::MatrixXd& new_node, std::vector<std::vecto
     int parent = nearest_node_ind;
     double min_cost = Manipulator::sumCost(nearest_node_ind, sum_cost) + (Manipulator::tree.col(nearest_node_ind) - new_node).norm();
     double temp_cost;
-    for(int i = 0; i < neighbor_nodes.size(); ++i){
+    for(int i = 0; i < neighbor_nodes[0].size(); ++i){
+//        std::cout << neighbor_nodes[0].size() << std::endl;
+//        std::cout << "neighbor_nodes[0][i]: "  << neighbor_nodes[0][i] <<std::endl;
         if(Manipulator::obstacleCollision(new_node, neighbor_nodes[0][i], obs_position)){
             sum_cost = 0;
             temp_cost = Manipulator::sumCost(neighbor_nodes[0][i], sum_cost) + (Manipulator::tree.col(neighbor_nodes[0][i]) - new_node).norm();
@@ -393,6 +343,8 @@ void Manipulator::chooseParent(Eigen::MatrixXd& new_node, std::vector<std::vecto
                 min_cost = temp_cost;
                 parent = neighbor_nodes[0][i];
             }
+//            std::cout << "************" << std::endl;
+//            std::cout << "cost: " <<min_cost << "   parent: " << parent <<std::endl;
         }
     }
     //insertNode
@@ -407,7 +359,7 @@ void Manipulator::chooseParent(Eigen::MatrixXd& new_node, std::vector<std::vecto
 void Manipulator::rewire(Eigen::MatrixXd& new_node, std::vector<std::vector<int> >& neighbor_nodes, Eigen::MatrixXd& obs_position){
     int new_node_ind = Manipulator::node_added - 1;
     float temp_cost;
-    for(int i = 0; i < neighbor_nodes.size(); ++i){
+    for(int i = 0; i < neighbor_nodes[0].size(); ++i){
         if(Manipulator::obstacleCollision(new_node, neighbor_nodes[0][i], obs_position)){
             temp_cost = Manipulator::sum_cost(0, new_node_ind) + (Manipulator::tree.col(neighbor_nodes[0][i]) - new_node).norm();
             if(temp_cost < Manipulator::sum_cost(0, neighbor_nodes[0][i])){
@@ -420,9 +372,11 @@ void Manipulator::rewire(Eigen::MatrixXd& new_node, std::vector<std::vector<int>
     }
 }
 
-double Manipulator::sumCost(int& nearest_node_ind, double& sum_cost){
+double Manipulator::sumCost(int& nearest_node_ind, double sum_cost){
     int current_index = nearest_node_ind;
     while(current_index != Manipulator::root_node){
+//        std::cout << "*****current_index*****" << std::endl;
+//        std::cout << current_index << std::endl;
         sum_cost += (Manipulator::tree.col(current_index) - Manipulator::tree.col(Manipulator::parent(0, current_index))).norm();
         current_index = Manipulator::parent(0, current_index);
     }
@@ -430,13 +384,4 @@ double Manipulator::sumCost(int& nearest_node_ind, double& sum_cost){
     return sum_cost;
 }
 
-//double Manipulator::sumCost(double& nearest_node_ind, double& sum_cost){
-//    int current_index = nearest_node_ind;
-//    while(current_index != Manipulator::root_node){
-//        sum_cost += (Manipulator::tree.col(current_index) - Manipulator::tree.col(Manipulator::parent(current_index, 0))).norm();
-//        current_index = Manipulator::parent(current_index, 0);
-//    }
-//    Manipulator::sum_cost(0, nearest_node_ind) = sum_cost;
-//    return sum_cost;
-//}
 

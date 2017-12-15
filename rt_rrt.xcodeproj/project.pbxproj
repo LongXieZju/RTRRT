@@ -14,6 +14,7 @@
 		F89BDF911FE2406A0083E15A /* VREP_arm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F89BDF8F1FE2406A0083E15A /* VREP_arm.cpp */; };
 		F89BDF931FE240EA0083E15A /* manipulator_test.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F89BDF921FE240EA0083E15A /* manipulator_test.cpp */; };
 		F89BDF951FE241C40083E15A /* rt_rrt.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F89BDF941FE241C40083E15A /* rt_rrt.cpp */; };
+		F8FC7E0D1FE39DC3004DBE61 /* vrep_test.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F8FC7E0C1FE39DC3004DBE61 /* vrep_test.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -41,6 +42,7 @@
 		F89BDF901FE2406A0083E15A /* VREP_arm.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = VREP_arm.hpp; sourceTree = "<group>"; };
 		F89BDF921FE240EA0083E15A /* manipulator_test.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = manipulator_test.cpp; sourceTree = "<group>"; };
 		F89BDF941FE241C40083E15A /* rt_rrt.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = rt_rrt.cpp; sourceTree = "<group>"; };
+		F8FC7E0C1FE39DC3004DBE61 /* vrep_test.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = vrep_test.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -83,6 +85,7 @@
 				F89BDF8F1FE2406A0083E15A /* VREP_arm.cpp */,
 				F89BDF921FE240EA0083E15A /* manipulator_test.cpp */,
 				F89BDF941FE241C40083E15A /* rt_rrt.cpp */,
+				F8FC7E0C1FE39DC3004DBE61 /* vrep_test.cpp */,
 				F89BDF901FE2406A0083E15A /* VREP_arm.hpp */,
 			);
 			path = rt_rrt;
@@ -147,6 +150,7 @@
 			files = (
 				F89BDF911FE2406A0083E15A /* VREP_arm.cpp in Sources */,
 				F89BDF841FE1CEB80083E15A /* Manipulator.cpp in Sources */,
+				F8FC7E0D1FE39DC3004DBE61 /* vrep_test.cpp in Sources */,
 				F89BDF871FE1D0B00083E15A /* flann_test.cpp in Sources */,
 				F89BDF951FE241C40083E15A /* rt_rrt.cpp in Sources */,
 				F89BDF8A1FE1E0D10083E15A /* VREP.cpp in Sources */,
