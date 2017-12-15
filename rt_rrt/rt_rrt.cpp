@@ -27,7 +27,6 @@ Eigen::MatrixXd getObstaclesPos(int* obstacles, VREP v){
 void rootRewire(int root_node, Manipulator& seven_arm, flann::Index<flann::L2<double> >& kd_tree, Eigen::MatrixXd& obs_position){
     std::queue<int> node_index;
     std::set<int> node_has;
-//    int root_node = 1;
     node_index.push(root_node);
     node_has.insert(root_node);
     std::vector<std::vector<int> > index;
@@ -39,13 +38,13 @@ void rootRewire(int root_node, Manipulator& seven_arm, flann::Index<flann::L2<do
     int root;
     double old_cost;
     double new_cost;
-    int count_reroot;
+    int count_reroot = 0;
+    
+    seven_arm.parent(0, seven_arm.root_node) = root_node;
+    seven_arm.sum_cost(0, root_node) = 0;
+    seven_arm.parent(0, root_node) = root_node;
+    seven_arm.root_node = root_node;
     while(!node_index.empty()){
-        seven_arm.parent(0, seven_arm.root_node) = root_node;
-        seven_arm.sum_cost(0, root_node) = 0;
-        seven_arm.parent(0, root_node) = root_node;
-        seven_arm.root_node = root_node;
-
         root = node_index.front();
         node_index.pop();
         flann::Matrix<double> node(seven_arm.tree.col(root).data(), 1, 7);
@@ -72,7 +71,7 @@ void rootRewire(int root_node, Manipulator& seven_arm, flann::Index<flann::L2<do
             }
         }
 
-        if(count_reroot == 100){
+        if(count_reroot == 60){
             break;
         }
     }
@@ -194,7 +193,8 @@ int main(){
     double min_cost = INFINITY;
     int parent = -1;
     flann::Matrix<double> goal_node(seven_arm.goal_angle.data(), 1, 7);
-    kd_tree.radiusSearch(goal_node, neighbors, dist, seven_arm.rewire_radius, flann::SearchParams(32, 0, false));
+    kd_tree.radiusSearch(goal_node, neighbors, dist, seven_arm.node_max_step, flann::SearchParams(32, 0, false));
+    seven_arm.chooseParent(new_node, neighbors, neighbors[0][0], obs_position, new_node_ind);
 //    seven_arm.rewire(seven_arm.goal_angle, neighbors, obs_position);
     for(int i = 0; i < neighbors[0].size(); ++i){
         if(seven_arm.obstacleCollision(seven_arm.goal_angle, neighbors[0][i], obs_position)){
@@ -205,8 +205,8 @@ int main(){
                 parent = neighbors[0][i];
             }
         }
-        std::cout << "****cost****" << std::endl;
-        std::cout << "min_cost: " << min_cost << std::endl;
+//        std::cout << "****cost****" << std::endl;
+//        std::cout << "min_cost: " << min_cost << std::endl;
     }
     std::cout << "****cost****" << std::endl;
     std::cout << min_cost << std::endl;
@@ -227,32 +227,72 @@ int main(){
 
     //Control V-rep manipulator
     int path_ind;
+    double time_step = 0.05;
     Eigen::MatrixXd joint_angle(7, 1);
     Eigen::MatrixXd obs1_position = v.getPosition(obstacles[0]);
     Eigen::MatrixXd obs2_position = v.getPosition(obstacles[1]);
     Eigen::MatrixXd obs3_position = v.getPosition(obstacles[2]);
-    double obs1_vel = 0.01;
+    double obs1_vel = 0.1;
     double obs3_vel = 0.01;
     Eigen::MatrixXd obs1_vector(3, 1);
     Eigen::MatrixXd obs3_vector(3, 1);
-    obs1_vector << 1, 0, 1;
+    obs1_vector << -1, 0, 0.2;
     obs3_vector << 0, 0, 0;
     
     v.simStart();
-    while(!seven_arm.back_trace.empty()){
-        path_ind = seven_arm.back_trace.top();
-        joint_angle = seven_arm.tree.col(path_ind);
-        v_arm.setJointPos(joint_angle - seven_arm.start_angle);
-        seven_arm.back_trace.pop();
-        v.simSleep(1000);
-        clock_t start_reRoot = clock();
-        rootRewire(path_ind, seven_arm, kd_tree, obs_position);
-        clock_t ends_reRoot = clock();
-        std::cout << "**** reRoot ****" << std::endl;
-        std::cout << "Running Time : " <<(double)(ends_reRoot - start_reRoot)/ CLOCKS_PER_SEC << std::endl;
+    for(int i = 0; i < 60; ++i){
+        v.setPosition(obstacles[0], obs1_position);
+        v.setPosition(obstacles[2], obs3_position);
+        obs_position.col(0) = obs1_position;
+        obs_position.col(2) = obs3_position;
+        
+        if(!seven_arm.back_trace.empty()){
+            path_ind = seven_arm.back_trace.top();
+            std::cout << "**** root ****" << std::endl;
+            std::cout << "root_index: " << path_ind << std::endl;
+            joint_angle = seven_arm.tree.col(path_ind);
+            v_arm.setJointPos(joint_angle - seven_arm.start_angle);
+            seven_arm.back_trace.pop();
+            v.simSleep(1000);
+            
+            if(!seven_arm.back_trace.empty()){
+                rootRewire(seven_arm.back_trace.top(), seven_arm, kd_tree, obs_position);
+                for(int i = 0; i < neighbors[0].size(); ++i){
+                    if(seven_arm.obstacleCollision(seven_arm.goal_angle, neighbors[0][i], obs_position)){
+                        sum_cost = 0;
+                        temp_cost = seven_arm.sumCost(neighbors[0][i], sum_cost) + (seven_arm.tree.col(neighbors[0][i]) - seven_arm.goal_angle).norm();
+                        if(temp_cost < min_cost){
+                            min_cost = temp_cost;
+                            parent = neighbors[0][i];
+                        }
+                    }
+                }
+//                std::cout << "****cost****" << std::endl;
+//                std::cout << "min_cost: " << min_cost << std::endl;
+                seven_arm.findPath(parent);
+            }
+        }else{
+            v_arm.setJointPos(seven_arm.goal_angle - seven_arm.start_angle);
+            v.simSleep(1000);
+            break;
+        }
+        obs1_position = v.getPosition(obstacles[0]) + obs1_vel * time_step * obs1_vector / obs1_vector.norm();
+        obs3_position = v.getPosition(obstacles[2]) + obs3_vel * time_step * obs3_vector;
     }
-    v_arm.setJointPos(seven_arm.goal_angle - seven_arm.start_angle);
-    v.simSleep(3000);
+//    while(!seven_arm.back_trace.empty()){
+//        path_ind = seven_arm.back_trace.top();
+//        joint_angle = seven_arm.tree.col(path_ind);
+//        v_arm.setJointPos(joint_angle - seven_arm.start_angle);
+//        seven_arm.back_trace.pop();
+//        v.simSleep(1000);
+//        clock_t start_reRoot = clock();
+//        rootRewire(path_ind, seven_arm, kd_tree, obs_position);
+//        clock_t ends_reRoot = clock();
+//        std::cout << "**** reRoot ****" << std::endl;
+//        std::cout << "Running Time : " <<(double)(ends_reRoot - start_reRoot)/ CLOCKS_PER_SEC << std::endl;
+//    }
+//    v_arm.setJointPos(seven_arm.goal_angle - seven_arm.start_angle);
+    v.simSleep(10000);
     v.simStop();
 
     //RootRwire

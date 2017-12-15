@@ -19,7 +19,7 @@ Manipulator::Manipulator(Eigen::MatrixXd dh_param){
 
     Manipulator::goal_bais = 0.03;
     Manipulator::link_num = 7;
-    Manipulator::max_iter = 2000;
+    Manipulator::max_iter = 10000;
     Manipulator::step_div = 2;
     Manipulator::obstacle_num = 3;
 //    Manipulator::node_max_step = 0.0462; // sqrt(sum(((1 * pi / 180)*ones(7, 1)).^2))
@@ -317,6 +317,9 @@ void Manipulator::insertNode(Eigen::MatrixXd& new_node, int& nearest_node_ind, i
 }
 
 void Manipulator::findPath(int nearest_node_index){
+    while(!Manipulator::back_trace.empty()){
+        Manipulator::back_trace.pop();
+    }
     int current_index = nearest_node_index;
     int path_iter = 0;
     while(current_index != Manipulator::root_node ){
