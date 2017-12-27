@@ -22,8 +22,8 @@ Manipulator::Manipulator(Eigen::MatrixXd dh_param){
     Manipulator::max_iter = 10000;
     Manipulator::step_div = 2;
     Manipulator::obstacle_num = 3;
-//    Manipulator::node_max_step = 0.0462; // sqrt(sum(((1 * pi / 180)*ones(7, 1)).^2))
-    Manipulator::node_max_step = 0.1;
+    Manipulator::node_max_step = 0.0462; // sqrt(sum(((1 * pi / 180)*ones(7, 1)).^2))
+//    Manipulator::node_max_step = 0.1;
 
     Manipulator::max_ang = 130*M_PI/180 * Eigen::MatrixXd::Ones(Manipulator::link_num, 1);
     Manipulator::min_ang = -45*M_PI/180 * Eigen::MatrixXd::Ones(Manipulator::link_num, 1);
@@ -34,6 +34,7 @@ Manipulator::Manipulator(Eigen::MatrixXd dh_param){
     Manipulator::parent = Eigen::MatrixXd::Zero(1, Manipulator::max_iter);
     Manipulator::children = Eigen::MatrixXd::Zero(1, Manipulator::max_iter);
     Manipulator::sum_cost = Eigen::MatrixXd::Zero(1, Manipulator::max_iter);
+    Manipulator::joint_position = Eigen::MatrixXd::Zero(3, 4*Manipulator::max_iter);
 }
 
 void Manipulator::setJointAngle(Eigen::MatrixXd joint_angle){
@@ -58,6 +59,13 @@ void Manipulator::setStartState(Eigen::MatrixXd joint_angle){
     Manipulator::tree.col(0) = joint_angle;
     Manipulator::node_added = 1;
     Manipulator::root_node = 0;
+    Eigen::MatrixXd joint_position = Manipulator::fkine(joint_angle);
+    std::cout << joint_position.col(0) << std::endl;
+    std::cout << Manipulator::joint_angle.col(0) << std::endl;
+    Manipulator::joint_position.col(0) = joint_position.col(0);
+    Manipulator::joint_position.col(1) = joint_position.col(1);
+    Manipulator::joint_position.col(2) = joint_position.col(2);
+    Manipulator::joint_position.col(3) = joint_position.col(3);
 }
 
 Eigen::MatrixXd Manipulator::jacob(Eigen::MatrixXd joint_angle){
@@ -258,9 +266,15 @@ int Manipulator::obstacleCollision(Eigen::MatrixXd& new_node, int& nearest_node_
             }
         }
     }
+//    int index = Manipulator::node_added*4;
+//    Manipulator::joint_position.col(index) = joint_position.col(0);
+//    Manipulator::joint_position.col(index+1) = joint_position.col(1);
+//    Manipulator::joint_position.col(index+2) = joint_position.col(2);
+//    Manipulator::joint_position.col(index+3) = joint_position.col(3);
     return 1;
 }
 
+//for goal
 int Manipulator::obstacleCollision(Eigen::MatrixXd& new_node, Eigen::MatrixXd& nearest_node, Eigen::MatrixXd& obs_position){
     Eigen::MatrixXd dist_temp = new_node - nearest_node;
     double dist = dist_temp.norm();
