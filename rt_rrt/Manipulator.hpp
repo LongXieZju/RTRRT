@@ -35,9 +35,9 @@ public:
     float arm_radius;
     float goal_bais;
     float node_max_step;
-    float obs_radius[3] = {0.07, 0.1, 0.07}; // +0.02
+//    float obs_radius[3] = {0.07, 0.1, 0.07}; // +0.02
     //    float obs_radius[3] = {0.11, 0.2, 0.07};
-//    float obs_radius[3] = {0.01, 0.01, 0.01};
+    float obs_radius[3] = {0.01, 0.01, 0.01};
     float link_length[3] = {0.29126, 0.32363, 0.15512};
     std::stack<int> back_trace;
     
@@ -64,6 +64,7 @@ public:
     
     
     Eigen::MatrixXd jacob(Eigen::MatrixXd joint_angle);
+    Eigen::MatrixXd partialJacob(Eigen::MatrixXd joint_angle, int link_num, float length);
     Eigen::MatrixXd fkine(Eigen::MatrixXd joint_angle);
     Eigen::MatrixXd ikine(Eigen::MatrixXd end_effector);
     
@@ -78,7 +79,7 @@ public:
     //    int obstacleCollision(Eigen::MatrixXd new_node, int nearest_node_ind, Eigen::MatrixXd obs_position);
     int obstacleCollision(Eigen::MatrixXd& new_node, int& nearest_node_ind, Eigen::MatrixXd& obs_position);
     int obstacleCollision(Eigen::MatrixXd& new_node, Eigen::MatrixXd& goal_node, Eigen::MatrixXd& obs_position);
-    //    float linkObstacleCollision(Eigen::MatrixXd P1, Eigen::MatrixXd P2, Eigen::MatrixXd obstacle);
+    int closestDist(Eigen::MatrixXd& joint_position, Eigen::MatrixXd& obs_position, Eigen::MatrixXd& min_close_p, double& min_dist);
     void insertNode(Eigen::MatrixXd& new_node, int& nearest_node_ind, int& new_node_ind);
     void findPath(int new_node_ind);
     

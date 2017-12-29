@@ -119,6 +119,157 @@ int main(){
     std::cout << seven_arm.start_angle.transpose() << std::endl;
     std::cout << "****obs_position****" << std::endl;
     std::cout << obs_position.transpose() << std::endl;
+    
+    //test for ikine
+    v.simStart();
+    float lamda = 0.2;           // damping constant
+    float stol = 1e-3;           // tolerance
+    float nm_error = 100;        // initial error
+    int count = 0;             // iteration count
+    int ilimit = 1000;         // maximum iteration
+    Eigen::MatrixXd end_position;
+    Eigen::MatrixXd joint_position;
+    Eigen::MatrixXd error;
+    Eigen::MatrixXd J;
+    Eigen::MatrixXd partial_Jacob;
+    Eigen::MatrixXd jacob;
+    Eigen::MatrixXd jacob_t;
+    Eigen::MatrixXd A;
+    Eigen::MatrixXd B = Eigen::MatrixXd::Zero(6, 1);
+    Eigen::MatrixXd I = Eigen::MatrixXd::Identity(6, 6);
+    Eigen::MatrixXd f;
+    Eigen::MatrixXd a;
+    Eigen::MatrixXd b;
+    double q_min;
+    double q_max;
+    
+    Eigen::MatrixXd W = Eigen::MatrixXd::Identity(7, 7);
+    Eigen::MatrixXd W_star = Eigen::MatrixXd::Identity(7, 7);
+    Eigen::MatrixXd q_n = Eigen::MatrixXd::Zero(7, 1);
+    Eigen::MatrixXd q_n_star = Eigen::MatrixXd::Zero(7, 1);
+    Eigen::MatrixXd q_sns = Eigen::MatrixXd::Zero(7, 1);
+    Eigen::MatrixXd::Index maxCol;
+    Eigen::MatrixXd::Index maxRow;
+    Eigen::MatrixXd::Index minCol;
+    Eigen::MatrixXd::Index minRow;
+    Eigen::MatrixXd min_close_p;
+    Eigen::MatrixXd vector = Eigen::MatrixXd::Zero(6, 1);
+    double min_dist_ikine;
+    double s_ikine = 1;
+    int s_star = 0;
+    bool limit_exceeded = true;
+    int link_num;
+    float bound_scale;
+    double alpha = 10;
+    double gama = 0.0000000001;
+    float length;
+    double task_scale;
+    
+    Eigen::MatrixXd joint_angle(7,1);
+    joint_angle << 0, 0, 0, M_PI/2, 0, M_PI/2, 0;
+    while(nm_error > stol){
+        q_n = Eigen::MatrixXd::Zero(7, 1);
+        W = Eigen::MatrixXd::Identity(7, 7);
+        s_ikine = 1;
+        limit_exceeded = true;
+        while(limit_exceeded){
+            limit_exceeded = false;
+            joint_position = seven_arm.fkine(joint_angle);
+            end_position = joint_position.col(3);
+            link_num = seven_arm.closestDist(joint_position, obs_position, min_close_p, min_dist_ikine);
+            length = (min_close_p - joint_position.col(link_num - 1)).norm();
+            vector.block(0,0,3,1) = (min_close_p - joint_position.col(link_num - 1))/(min_close_p - joint_position.col(link_num - 1)).norm();
+            partial_Jacob = seven_arm.partialJacob(joint_angle, link_num, length);
+            bound_scale = 1/(1 + exp(min_dist_ikine * (2/gama) - 1) * alpha);
+            Eigen::MatrixXd s = partial_Jacob.transpose() * vector * min_dist_ikine;
+            for(int i = 0; i < s.rows(); i++){
+                if(s(i, 0) >= 0){
+                    seven_arm.max_ang = seven_arm.max_ang * (1 - bound_scale);
+                }else{
+                    seven_arm.min_ang = seven_arm.min_ang * (1 - bound_scale);
+                }
+            }
+            
+            error = goal_position - end_position;
+            B.block(0,0,3,1) = 0.4*error;
+            J = seven_arm.jacob(joint_angle);
+            jacob = J * W;
+            jacob_t = jacob.transpose();
+            A = jacob*jacob_t + lamda*lamda * I;
+            f = A.lu().solve(B * s_ikine - J * q_n);
+            q_sns = q_n + jacob_t * f;
+            q_min = (q_n - seven_arm.min_ang).minCoeff(&minRow, &minCol);
+            q_max = (seven_arm.max_ang - q_n).minCoeff(&maxRow, &maxCol);
+            if(q_min < 0 || q_max < 0){
+                limit_exceeded = true;
+                //Algorithm 2
+                a = jacob_t * A.lu().solve(B);
+                b = q_n - jacob_t * A.lu().solve(J * q_n);
+                Eigen::MatrixXd S_min(7,1);
+                Eigen::MatrixXd S_max(7,1);
+                for(int i = 0; i < seven_arm.link_num; ++i){
+                    S_min(i, 0) = (seven_arm.min_ang(i, 0) - b(i, 0)) / a(i, 0);
+                    S_max(i, 0) = (seven_arm.max_ang(i, 0) - b(i, 0)) / a(i, 0);
+                    if(S_min(i, 0) > S_max(i, 0)){
+                        double temp = S_min(i, 0);
+                        S_min(i, 0) = S_max(i, 0);
+                        S_max(i, 0) = temp;
+                    }
+                }
+                double s_max = S_max.minCoeff();
+                double s_min = S_min.maxCoeff();
+                if(s_min > s_max || s_min > 1 || s_max < 0){
+                    task_scale = 0;
+                }else{
+                    task_scale = fmin(s_max, 1);
+                }
+                //end Algorithm 2
+                if(task_scale > s_star){
+                    s_star = task_scale;
+                    W_star = W;
+                    q_n_star = q_n;
+                }
+                if(q_min < 0 && q_max < 0){
+                    if(q_min < q_max){
+                        W(minRow, minRow) = 0;
+                        q_n(minRow, 0) = seven_arm.min_ang(minRow, 0);
+                    }else{
+                        W(maxRow, maxRow) = 0;
+                        q_n(maxRow, 0) = seven_arm.max_ang(maxRow, 0);
+                    }
+                }else if(q_min < 0){
+                    W(minRow, minRow) = 0;
+                    q_n(minRow, 0) = seven_arm.min_ang(minRow, 0);
+                }else{
+                    W(maxRow, maxRow) = 0;
+                    q_n(maxRow, 0) = seven_arm.max_ang(maxRow, 0);
+                }
+                Eigen::FullPivLU<Eigen::MatrixXd> lu(J * W);
+                if(lu.rank() < 6){
+                    s_ikine = s_star;
+                    W = W_star;
+                    q_n = q_n_star;
+                    jacob = J * W;
+                    jacob_t = jacob.transpose();
+                    A = jacob*jacob_t + lamda*lamda * I;
+                    f = A.lu().solve(B * s_ikine - J * q_n);
+                    q_sns = q_n + jacob_t * f;
+                    limit_exceeded = false;
+                }
+            }
+        }
+        joint_angle = joint_angle + q_sns;
+        v_arm.setJointPos(joint_angle - seven_arm.start_angle);
+        nm_error = error.norm();
+        count += 1;
+        if(count > ilimit){
+            std::cout<< "Solution wouldn't converge" << std::endl;
+            break;
+        }
+        v.simSleep(500);
+    }
+    v.simStop();
+    //end test
 
 
     //KD-tree
@@ -140,7 +291,7 @@ int main(){
     double min_dist;
 
     //v.simStart();
-    int count = 0;
+//    int count = 0;
     clock_t start_jacob = clock();
     for(int i = 0; i < seven_arm.max_iter; i++){
         count++;
@@ -220,7 +371,7 @@ int main(){
     //Control V-rep manipulator
     int path_ind;
     double time_step = 0.05;
-    Eigen::MatrixXd joint_angle(7, 1);
+//    Eigen::MatrixXd joint_angle(7, 1);
 //    Eigen::MatrixXd obs1_position = v.getPosition(obstacles[0]);
     Eigen::MatrixXd obs2_position = v.getPosition(obstacles[1]);
     Eigen::MatrixXd obs3_position = v.getPosition(obstacles[2]);

@@ -100,6 +100,45 @@ Eigen::MatrixXd Manipulator::jacob(Eigen::MatrixXd joint_angle){
     return J0;
 }
 
+Eigen::MatrixXd Manipulator::partialJacob(Eigen::MatrixXd joint_angle, int link_num, float length){
+    Eigen::MatrixXd Jn = Eigen::MatrixXd::Zero(6, 2 * link_num + 1);
+    Eigen::MatrixXd J0 = Eigen::MatrixXd::Zero(6, 2 * link_num + 1);
+    Eigen::MatrixXd J_temp = Eigen::MatrixXd::Zero(6, 6);
+    Eigen::MatrixXd UT = Eigen::MatrixXd::Identity(4, 4);
+    Eigen::MatrixXd dh = Manipulator::getDhParam();
+    Eigen::Matrix4Xd T_temp(4,4);
+    Eigen::MatrixXd delta(3, 1);
+    Eigen::MatrixXd D(3, 1);
+    for(int i = 2 * link_num; i >= 0; i--){
+        float q = joint_angle(i);
+        float d;
+        if(i == 2 * link_num){
+            d = length;
+        }else{
+            d = dh(i,1);
+        }
+        float a = dh(i,2);
+        float alpha = dh(i,3);
+        T_temp << cos(q), -sin(q)*cos(alpha), sin(q)*sin(alpha), a*cos(q),
+        sin(q),  cos(q)*cos(alpha),-cos(q)*sin(alpha), a*sin(q),
+        0,         sin(alpha),         cos(alpha),       d,
+        0,            0,                 0,              1;
+        UT = T_temp*UT;
+        D << -UT(0,0)*UT(1,3)+UT(1,0)*UT(0,3),
+        -UT(0,1)*UT(1,3)+UT(1,1)*UT(0,3),
+        -UT(0,2)*UT(1,3)+UT(1,2)*UT(0,3);
+        delta = UT.block(2,0,1,3).transpose();
+        Jn.block(0,i,3,1) = D;
+        Jn.block(3,i,3,1) = delta;
+    }
+    J_temp.block(0,0,3,3) = UT.block(0,0,3,3);
+    J_temp.block(3,3,3,3) = UT.block(0,0,3,3);
+    J0 = J_temp * Jn;
+    return J0;
+}
+
+
+
 Eigen::MatrixXd Manipulator::fkine(Eigen::MatrixXd joint_angle){
     Eigen::MatrixXd joint_position(3,4);
     joint_position.col(0) << 0, 0, 0.20386;
@@ -163,7 +202,7 @@ Eigen::MatrixXd Manipulator::ikine(Eigen::MatrixXd goal_position){
     return joint_angle;
 }
 
-Eigen::Matrix4Xd Manipulator::transMatrix (Eigen::MatrixXd link, float q){
+Eigen::Matrix4Xd Manipulator::transMatrix(Eigen::MatrixXd link, float q){
     float d = link(1);
     float a = link(2);
     float alpha = link(3);
@@ -273,6 +312,46 @@ int Manipulator::obstacleCollision(Eigen::MatrixXd& new_node, int& nearest_node_
 //    Manipulator::joint_position.col(index+3) = joint_position.col(3);
     return 1;
 }
+
+int Manipulator::closestDist(Eigen::MatrixXd& joint_position, Eigen::MatrixXd& obs_position, Eigen::MatrixXd& min_close_p, double& min_dist){
+    Eigen::MatrixXd obs_dist;
+    double dist = 65536;
+    min_dist = 65536;
+    Eigen::MatrixXd close_p;
+    int min_link_num;
+    for(int i = 0; i < Manipulator::obstacle_num; ++i){
+        obs_dist = (joint_position - obs_position.col(i).replicate(1, 4)).colwise().norm();
+        for(int k = 0; k < 3; ++k){
+            if(obs_dist(0, k) + obs_dist(0, k+1) == Manipulator::link_length[k]){
+                return 0;
+            }else if(pow(obs_dist(0, k+1), 2) >= pow(obs_dist(0, k), 2) + pow(Manipulator::link_length[k], 2)){
+                if(obs_dist(0, k) < dist){
+                    dist = obs_dist(0, k);
+                    close_p = joint_position.col(k);
+                }
+            }else if(pow(obs_dist(0, k), 2) >= pow(obs_dist(0, k+1), 2) + pow(Manipulator::link_length[k], 2)){
+                if(obs_dist(0, k+1) < dist){
+                    dist = obs_dist(0, k+1);
+                    close_p = joint_position.col(k+1);
+                }
+            }else{
+                float p = (obs_dist(0, k) + obs_dist(0, k+1) + Manipulator::link_length[k])/2;
+                float S = sqrt(p*(p - obs_dist(0, k))*(p - obs_dist(0, k+1))*(p - Manipulator::link_length[k]));
+                dist = 2*S/Manipulator::link_length[k];
+                double m = sqrt(pow(obs_dist(0, k+1), 2) - dist*dist) / Manipulator::link_length[k];
+                close_p = joint_position.col(k) + m * (joint_position.col(k+1) - joint_position.col(k));
+            }
+            dist = dist - Manipulator::arm_radius - Manipulator::obs_radius[i];
+            if(dist < min_dist){
+                min_dist = dist;
+                min_close_p = close_p;
+                min_link_num = k + 1;
+            }
+        }
+    }
+    return min_link_num;
+}
+
 
 //for goal
 int Manipulator::obstacleCollision(Eigen::MatrixXd& new_node, Eigen::MatrixXd& nearest_node, Eigen::MatrixXd& obs_position){
