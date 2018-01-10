@@ -19,14 +19,14 @@ Manipulator::Manipulator(Eigen::MatrixXd dh_param){
 
     Manipulator::goal_bais = 0.03;
     Manipulator::link_num = 7;
-    Manipulator::max_iter = 10000;
+    Manipulator::max_iter = 30000;
     Manipulator::step_div = 2;
     Manipulator::obstacle_num = 3;
     Manipulator::node_max_step = 0.0462; // sqrt(sum(((1 * pi / 180)*ones(7, 1)).^2))
 //    Manipulator::node_max_step = 0.1;
 
-    Manipulator::max_ang = 130*M_PI/180 * Eigen::MatrixXd::Ones(Manipulator::link_num, 1);
-    Manipulator::min_ang = -45*M_PI/180 * Eigen::MatrixXd::Ones(Manipulator::link_num, 1);
+    Manipulator::max_ang = 180*M_PI/180 * Eigen::MatrixXd::Ones(Manipulator::link_num, 1);
+    Manipulator::min_ang = -180*M_PI/180 * Eigen::MatrixXd::Ones(Manipulator::link_num, 1);
     Manipulator::arm_radius = 0.04;
     Manipulator::rewire_radius = 0.03;
 

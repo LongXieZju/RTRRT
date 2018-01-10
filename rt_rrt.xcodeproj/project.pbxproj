@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		F858E5F52003B58E000286AE /* save_data.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F858E5F42003B58E000286AE /* save_data.cpp */; };
 		F89BDF761FE1C9310083E15A /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F89BDF751FE1C9310083E15A /* main.cpp */; };
 		F89BDF841FE1CEB80083E15A /* Manipulator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F89BDF821FE1CEB80083E15A /* Manipulator.cpp */; };
 		F89BDF871FE1D0B00083E15A /* flann_test.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F89BDF861FE1D0B00083E15A /* flann_test.cpp */; };
@@ -30,6 +31,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		F858E5F42003B58E000286AE /* save_data.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = save_data.cpp; sourceTree = "<group>"; };
 		F89BDF721FE1C9310083E15A /* rt_rrt */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = rt_rrt; sourceTree = BUILT_PRODUCTS_DIR; };
 		F89BDF751FE1C9310083E15A /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
 		F89BDF821FE1CEB80083E15A /* Manipulator.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Manipulator.cpp; sourceTree = "<group>"; };
@@ -87,6 +89,7 @@
 				F89BDF941FE241C40083E15A /* rt_rrt.cpp */,
 				F8FC7E0C1FE39DC3004DBE61 /* vrep_test.cpp */,
 				F89BDF901FE2406A0083E15A /* VREP_arm.hpp */,
+				F858E5F42003B58E000286AE /* save_data.cpp */,
 			);
 			path = rt_rrt;
 			sourceTree = "<group>";
@@ -155,6 +158,7 @@
 				F89BDF951FE241C40083E15A /* rt_rrt.cpp in Sources */,
 				F89BDF8A1FE1E0D10083E15A /* VREP.cpp in Sources */,
 				F89BDF931FE240EA0083E15A /* manipulator_test.cpp in Sources */,
+				F858E5F52003B58E000286AE /* save_data.cpp in Sources */,
 				F89BDF761FE1C9310083E15A /* main.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
