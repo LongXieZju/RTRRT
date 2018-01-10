@@ -67,7 +67,7 @@ public:
     Eigen::MatrixXd partialJacob(Eigen::MatrixXd joint_angle, int link_num, float length);
     Eigen::MatrixXd fkine(Eigen::MatrixXd joint_angle);
     Eigen::MatrixXd ikine(Eigen::MatrixXd end_effector);
-    
+    Eigen::MatrixXd ikineStart(Eigen::MatrixXd goal_position, Eigen::MatrixXd joint_angle);
     Eigen::Matrix4Xd transMatrix(Eigen::MatrixXd manipulator_dh, float q);
     
     Eigen::MatrixXd sampleNode();
