@@ -11,6 +11,7 @@
 #include <queue>
 #include <set>
 #include <eigen3/Eigen/Geometry>
+#include <fstream>
 #include "Manipulator.hpp"
 #include "VREP.hpp"
 #include "VREP_arm.hpp"
@@ -101,7 +102,7 @@ int main(){
     Eigen::MatrixXd goal_position = v.getPosition(goal_handle);
     std::cout << "****goal_position****" << std::endl;
     std::cout << goal_position.transpose() << std::endl;
-    int obstacles[3] = {v.getHandle("obstacle_4"), v.getHandle("obstacle_2"), v.getHandle("obstacle_3")};
+    int obstacles[3] = {v.getHandle("obstacle_1"), v.getHandle("obstacle_2"), v.getHandle("obstacle_3")};
     std::cout << "****obs_handle****" << std::endl;
     std::cout << obstacles[0] << "," << obstacles[1] << "," << obstacles[2] << std::endl;
     Eigen::MatrixXd obs_position = getObstaclesPos(obstacles, v);
@@ -120,157 +121,14 @@ int main(){
     std::cout << "****obs_position****" << std::endl;
     std::cout << obs_position.transpose() << std::endl;
     
-    //test for ikine
-    v.simStart();
-    float lamda = 0.2;           // damping constant
-    float stol = 1e-3;           // tolerance
-    float nm_error = 100;        // initial error
-    int count = 0;             // iteration count
-    int ilimit = 1000;         // maximum iteration
-    Eigen::MatrixXd end_position;
-    Eigen::MatrixXd joint_position;
-    Eigen::MatrixXd error;
-    Eigen::MatrixXd J;
-    Eigen::MatrixXd partial_Jacob;
-    Eigen::MatrixXd jacob;
-    Eigen::MatrixXd jacob_t;
-    Eigen::MatrixXd A;
-    Eigen::MatrixXd B = Eigen::MatrixXd::Zero(6, 1);
-    Eigen::MatrixXd I = Eigen::MatrixXd::Identity(6, 6);
-    Eigen::MatrixXd f;
-    Eigen::MatrixXd a;
-    Eigen::MatrixXd b;
-    double q_min;
-    double q_max;
-    
-    Eigen::MatrixXd W = Eigen::MatrixXd::Identity(7, 7);
-    Eigen::MatrixXd W_star = Eigen::MatrixXd::Identity(7, 7);
-    Eigen::MatrixXd q_n = Eigen::MatrixXd::Zero(7, 1);
-    Eigen::MatrixXd q_n_star = Eigen::MatrixXd::Zero(7, 1);
-    Eigen::MatrixXd q_sns = Eigen::MatrixXd::Zero(7, 1);
-    Eigen::MatrixXd::Index maxCol;
-    Eigen::MatrixXd::Index maxRow;
-    Eigen::MatrixXd::Index minCol;
-    Eigen::MatrixXd::Index minRow;
-    Eigen::MatrixXd min_close_p;
-    Eigen::MatrixXd vector = Eigen::MatrixXd::Zero(6, 1);
-    double min_dist_ikine;
-    double s_ikine = 1;
-    int s_star = 0;
-    bool limit_exceeded = true;
-    int link_num;
-    float bound_scale;
-    double alpha = 10;
-    double gama = 0.0000000001;
-    float length;
-    double task_scale;
-    
-    Eigen::MatrixXd joint_angle(7,1);
-    joint_angle << 0, 0, 0, M_PI/2, 0, M_PI/2, 0;
-    while(nm_error > stol){
-        q_n = Eigen::MatrixXd::Zero(7, 1);
-        W = Eigen::MatrixXd::Identity(7, 7);
-        s_ikine = 1;
-        limit_exceeded = true;
-        while(limit_exceeded){
-            limit_exceeded = false;
-            joint_position = seven_arm.fkine(joint_angle);
-            end_position = joint_position.col(3);
-            link_num = seven_arm.closestDist(joint_position, obs_position, min_close_p, min_dist_ikine);
-            length = (min_close_p - joint_position.col(link_num - 1)).norm();
-            vector.block(0,0,3,1) = (min_close_p - joint_position.col(link_num - 1))/(min_close_p - joint_position.col(link_num - 1)).norm();
-            partial_Jacob = seven_arm.partialJacob(joint_angle, link_num, length);
-            bound_scale = 1/(1 + exp(min_dist_ikine * (2/gama) - 1) * alpha);
-            Eigen::MatrixXd s = partial_Jacob.transpose() * vector * min_dist_ikine;
-            for(int i = 0; i < s.rows(); i++){
-                if(s(i, 0) >= 0){
-                    seven_arm.max_ang = seven_arm.max_ang * (1 - bound_scale);
-                }else{
-                    seven_arm.min_ang = seven_arm.min_ang * (1 - bound_scale);
-                }
-            }
-            
-            error = goal_position - end_position;
-            B.block(0,0,3,1) = 0.4*error;
-            J = seven_arm.jacob(joint_angle);
-            jacob = J * W;
-            jacob_t = jacob.transpose();
-            A = jacob*jacob_t + lamda*lamda * I;
-            f = A.lu().solve(B * s_ikine - J * q_n);
-            q_sns = q_n + jacob_t * f;
-            q_min = (q_n - seven_arm.min_ang).minCoeff(&minRow, &minCol);
-            q_max = (seven_arm.max_ang - q_n).minCoeff(&maxRow, &maxCol);
-            if(q_min < 0 || q_max < 0){
-                limit_exceeded = true;
-                //Algorithm 2
-                a = jacob_t * A.lu().solve(B);
-                b = q_n - jacob_t * A.lu().solve(J * q_n);
-                Eigen::MatrixXd S_min(7,1);
-                Eigen::MatrixXd S_max(7,1);
-                for(int i = 0; i < seven_arm.link_num; ++i){
-                    S_min(i, 0) = (seven_arm.min_ang(i, 0) - b(i, 0)) / a(i, 0);
-                    S_max(i, 0) = (seven_arm.max_ang(i, 0) - b(i, 0)) / a(i, 0);
-                    if(S_min(i, 0) > S_max(i, 0)){
-                        double temp = S_min(i, 0);
-                        S_min(i, 0) = S_max(i, 0);
-                        S_max(i, 0) = temp;
-                    }
-                }
-                double s_max = S_max.minCoeff();
-                double s_min = S_min.maxCoeff();
-                if(s_min > s_max || s_min > 1 || s_max < 0){
-                    task_scale = 0;
-                }else{
-                    task_scale = fmin(s_max, 1);
-                }
-                //end Algorithm 2
-                if(task_scale > s_star){
-                    s_star = task_scale;
-                    W_star = W;
-                    q_n_star = q_n;
-                }
-                if(q_min < 0 && q_max < 0){
-                    if(q_min < q_max){
-                        W(minRow, minRow) = 0;
-                        q_n(minRow, 0) = seven_arm.min_ang(minRow, 0);
-                    }else{
-                        W(maxRow, maxRow) = 0;
-                        q_n(maxRow, 0) = seven_arm.max_ang(maxRow, 0);
-                    }
-                }else if(q_min < 0){
-                    W(minRow, minRow) = 0;
-                    q_n(minRow, 0) = seven_arm.min_ang(minRow, 0);
-                }else{
-                    W(maxRow, maxRow) = 0;
-                    q_n(maxRow, 0) = seven_arm.max_ang(maxRow, 0);
-                }
-                Eigen::FullPivLU<Eigen::MatrixXd> lu(J * W);
-                if(lu.rank() < 6){
-                    s_ikine = s_star;
-                    W = W_star;
-                    q_n = q_n_star;
-                    jacob = J * W;
-                    jacob_t = jacob.transpose();
-                    A = jacob*jacob_t + lamda*lamda * I;
-                    f = A.lu().solve(B * s_ikine - J * q_n);
-                    q_sns = q_n + jacob_t * f;
-                    limit_exceeded = false;
-                }
-            }
-        }
-        joint_angle = joint_angle + q_sns;
-        v_arm.setJointPos(joint_angle - seven_arm.start_angle);
-        nm_error = error.norm();
-        count += 1;
-        if(count > ilimit){
-            std::cout<< "Solution wouldn't converge" << std::endl;
-            break;
-        }
-        v.simSleep(500);
+    //Save obstacles position
+    std::ofstream obs_out("/Users/xielong/Desktop/save_data/obs_position.txt", std::ios::out | std::ios::trunc);
+    if (obs_out.is_open())
+    {
+        obs_out << obs_position.transpose() << "\n";
+        obs_out.close();
+        std::cout << "Success store the obstacles' position!" << std::endl;
     }
-    v.simStop();
-    //end test
-
 
     //KD-tree
     std::vector<std::vector<int> > index;
@@ -291,7 +149,7 @@ int main(){
     double min_dist;
 
     //v.simStart();
-//    int count = 0;
+    int count = 0;
     clock_t start_jacob = clock();
     for(int i = 0; i < seven_arm.max_iter; i++){
         count++;
@@ -329,6 +187,15 @@ int main(){
     }
     clock_t ends_jacob = clock();
     std::cout <<"RRT Running Time : "<<(double)(ends_jacob - start_jacob)/ CLOCKS_PER_SEC << std::endl;
+    
+    //Save the tree
+    std::ofstream tree_out("/Users/xielong/Desktop/save_data/tree.txt", std::ios::out | std::ios::trunc);
+    if (tree_out.is_open())
+    {
+        tree_out << seven_arm.tree << "\n";
+        tree_out.close();
+        std::cout << "Success store tree!" << std::endl;
+    }
 
     //Find shortest path
     double sum_cost;
@@ -336,7 +203,7 @@ int main(){
     double min_cost = INFINITY;
     int parent = -1;
     flann::Matrix<double> goal_node(seven_arm.goal_angle.data(), 1, 7);
-    kd_tree.radiusSearch(goal_node, neighbors, dist, seven_arm.node_max_step, flann::SearchParams(32, 0, false));
+    kd_tree.radiusSearch(goal_node, neighbors, dist, 0.0162, flann::SearchParams(32, 0, false));
     seven_arm.chooseParent(new_node, neighbors, neighbors[0][0], obs_position, new_node_ind);
 //    seven_arm.rewire(seven_arm.goal_angle, neighbors, obs_position);
     for(int i = 0; i < neighbors[0].size(); ++i){
@@ -367,11 +234,33 @@ int main(){
     std::cout << count << " " << "Nodes" << std::endl;
     std::cout << "**** node_added ****" << std::endl;
     std::cout << seven_arm.node_added << " " << "Nodes" << std::endl;
-
+    
+//    //Save the path
+//    std::ofstream path_out("/Users/xielong/Desktop/save_data/path.txt", std::ios::out | std::ios::trunc);
+//    if (path_out.is_open())
+//    {
+//        v.simStart();
+//        for(int i = 0; i < seven_arm.back_trace.size(); i++){
+//            path_out << seven_arm.back_trace.top() << "\n";
+//            int path_ind = seven_arm.back_trace.top();
+//            std::cout << "**** root ****" << std::endl;
+//            std::cout << "root_index: " << path_ind << std::endl;
+//            Eigen::MatrixXd joint_angle = seven_arm.tree.col(path_ind);
+//            v_arm.setJointPos(joint_angle - seven_arm.start_angle);
+//            seven_arm.back_trace.pop();
+//            v.simSleep(500);
+//        }
+//        path_out.close();
+//        std::cout << "Success store the path!" << std::endl;
+//        v.simStop();
+//    }
+//    seven_arm.findPath(parent);
+    
+    
     //Control V-rep manipulator
     int path_ind;
     double time_step = 0.05;
-//    Eigen::MatrixXd joint_angle(7, 1);
+    Eigen::MatrixXd joint_angle(7, 1);
 //    Eigen::MatrixXd obs1_position = v.getPosition(obstacles[0]);
     Eigen::MatrixXd obs2_position = v.getPosition(obstacles[1]);
     Eigen::MatrixXd obs3_position = v.getPosition(obstacles[2]);
@@ -387,12 +276,16 @@ int main(){
     obs1_vector << -1, 0, 0;
     obs3_vector << -1, 1, 0;
     goal_vector << 1, 0.1, 0;
-    double obs1_vel = 0.012;
-    double obs3_vel = 0.008;
-    double goal_vel = 0.002;
+//    double obs1_vel = 0.012;
+//    double obs3_vel = 0.008;
+//    double goal_vel = 0.002;
+    double obs1_vel = 0;
+    double obs3_vel = 0;
+    double goal_vel = 0;
     int obh = v.getHandle("obstacle_1");
     
     Eigen::MatrixXd obs1_position = v.getPosition(obh);
+    std::ofstream path_out_2("/Users/xielong/Desktop/save_data/path.txt", std::ios::out | std::ios::trunc);
     
     v.simStart();
     for(int i = 0; i < 60; ++i){
@@ -402,12 +295,16 @@ int main(){
         obs_position.col(0) = obs1_position;
         obs_position.col(2) = obs3_position;
         
-        seven_arm.goal_angle = seven_arm.ikine(goal_position);
+        seven_arm.goal_angle = seven_arm.ikineStart(goal_position, seven_arm.goal_angle);
         
         if(!seven_arm.back_trace.empty()){
             path_ind = seven_arm.back_trace.top();
             std::cout << "**** root ****" << std::endl;
             std::cout << "root_index: " << path_ind << std::endl;
+            //Save the path
+            if (path_out_2.is_open()){
+                path_out_2 << path_ind << "\n";
+            }
             joint_angle = seven_arm.tree.col(path_ind);
             v_arm.setJointPos(joint_angle - seven_arm.start_angle);
             seven_arm.back_trace.pop();
@@ -436,9 +333,11 @@ int main(){
         obs3_position = v.getPosition(obstacles[2]) + obs3_vel * time_step * obs3_vector / obs3_vector.norm() * i;
         goal_position = v.getPosition(goal_handle) + goal_vel * time_step * goal_vector / goal_vector.norm() * i;
     }
-    v.simSleep(10000);
+    v.simSleep(100);
     v.simStop();
-
+    path_out_2.close();
+    std::cout << "Success store the path!" << std::endl;
+    
     return 0;
 }
 

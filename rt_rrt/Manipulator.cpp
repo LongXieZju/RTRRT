@@ -22,13 +22,13 @@ Manipulator::Manipulator(Eigen::MatrixXd dh_param){
     Manipulator::max_iter = 10000;
     Manipulator::step_div = 2;
     Manipulator::obstacle_num = 3;
-    Manipulator::node_max_step = 0.0462; // sqrt(sum(((1 * pi / 180)*ones(7, 1)).^2))
+    Manipulator::node_max_step = 0.0062; // sqrt(sum(((1 * pi / 180)*ones(7, 1)).^2))
 //    Manipulator::node_max_step = 0.1;
 
     Manipulator::max_ang = 130*M_PI/180 * Eigen::MatrixXd::Ones(Manipulator::link_num, 1);
     Manipulator::min_ang = -45*M_PI/180 * Eigen::MatrixXd::Ones(Manipulator::link_num, 1);
     Manipulator::arm_radius = 0.04;
-    Manipulator::rewire_radius = 0.03;
+    Manipulator::rewire_radius = 0.009;
 
     Manipulator::tree = Eigen::MatrixXd::Zero(Manipulator::link_num, Manipulator::max_iter);
     Manipulator::parent = Eigen::MatrixXd::Zero(1, Manipulator::max_iter);
@@ -52,6 +52,7 @@ Eigen::MatrixXd Manipulator::getDhParam(){
 void Manipulator::setGoalPosition(Eigen::MatrixXd goal_position){
     Manipulator::goal_position = goal_position;
     Manipulator::goal_angle = Manipulator::ikine(goal_position);
+    Manipulator::goal_angle << 1.1361, 0.3742, 0.0850, 1.3542, 0.0052, 1.4092, -0.2898;
 }
 
 void Manipulator::setStartState(Eigen::MatrixXd joint_angle){
@@ -183,6 +184,42 @@ Eigen::MatrixXd Manipulator::ikine(Eigen::MatrixXd goal_position){
 
     Eigen::MatrixXd joint_angle(7,1);
     joint_angle << 0, 0, 0, M_PI/2, 0, M_PI/2, 0;
+    while(nm_error > stol){
+        end_position = Manipulator::fkine(joint_angle).col(3);
+        error = goal_position - end_position;
+        B.block(0,0,3,1) = error;
+        jacob = Manipulator::jacob(joint_angle);
+        jacob_t = jacob.transpose();
+        A = jacob*jacob_t + lamda*lamda * I;
+        f = A.lu().solve(B);
+        joint_angle = joint_angle + jacob_t * f;
+        nm_error = error.norm();
+        count += 1;
+        if(count > ilimit){
+            std::cout<< "Solution wouldn't converge" << std::endl;
+            break;
+        }
+    }
+    return joint_angle;
+}
+
+Eigen::MatrixXd Manipulator::ikineStart(Eigen::MatrixXd goal_position, Eigen::MatrixXd joint_angle){
+    float lamda = 0.2;           // damping constant
+    float stol = 1e-3;           // tolerance
+    float nm_error = 100;        // initial error
+    int count = 0;             // iteration count
+    int ilimit = 1000;         // maximum iteration
+    Eigen::MatrixXd end_position;
+    Eigen::MatrixXd error;
+    Eigen::MatrixXd jacob;
+    Eigen::MatrixXd jacob_t;
+    Eigen::MatrixXd A;
+    Eigen::MatrixXd B = Eigen::MatrixXd::Zero(6, 1);
+    Eigen::MatrixXd I = Eigen::MatrixXd::Identity(6, 6);
+    Eigen::MatrixXd f;
+    
+//    Eigen::MatrixXd joint_angle(7,1);
+//    joint_angle << 0, 0, 0, M_PI/2, 0, M_PI/2, 0;
     while(nm_error > stol){
         end_position = Manipulator::fkine(joint_angle).col(3);
         error = goal_position - end_position;
@@ -425,7 +462,7 @@ void Manipulator::findPath(int nearest_node_index){
 
 void Manipulator::chooseParent(Eigen::MatrixXd& new_node, std::vector<std::vector<int> >& neighbor_nodes,
                                int& nearest_node_ind, Eigen::MatrixXd& obs_position, int& new_node_ind){
-    double sum_cost;
+    double sum_cost = 0;
     int parent = nearest_node_ind;
     double min_cost = Manipulator::sumCost(nearest_node_ind, sum_cost) + (Manipulator::tree.col(nearest_node_ind) - new_node).norm();
     double temp_cost;
