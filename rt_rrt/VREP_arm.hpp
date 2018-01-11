@@ -20,6 +20,7 @@ public:
     Eigen::MatrixXd getPosition();
     void setJointPos(float *joint);
     void setJointPos(Eigen::MatrixXd joint);
+    Eigen::MatrixXd getJointAngle();
 };
 
 #endif /* VREP_arm_hpp */

@@ -26,6 +26,7 @@ public:
     Eigen::MatrixXd getPosition(int handle);
     void setPosition(int handle, Eigen::MatrixXd& position);
     void setJointPos(int handle, float joint);
+    float getJointPos(int handle);
 };
 
 #endif /* VREP_hpp */

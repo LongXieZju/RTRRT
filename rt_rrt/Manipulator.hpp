@@ -42,6 +42,7 @@ public:
     
     Eigen::MatrixXd goal_position;
     Eigen::MatrixXd goal_angle;
+    Eigen::MatrixXd goal_angle_2;
     Eigen::MatrixXd start_angle;
     Eigen::MatrixXd max_ang;
     Eigen::MatrixXd min_ang;
@@ -64,6 +65,7 @@ public:
     Eigen::MatrixXd jacob(Eigen::MatrixXd joint_angle);
     Eigen::MatrixXd fkine(Eigen::MatrixXd joint_angle);
     Eigen::MatrixXd ikine(Eigen::MatrixXd end_effector);
+    Eigen::MatrixXd ikineStart(Eigen::MatrixXd goal_position, Eigen::MatrixXd joint_angle);
     
     Eigen::Matrix4Xd transMatrix(Eigen::MatrixXd manipulator_dh, float q);
     
