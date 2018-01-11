@@ -85,3 +85,11 @@ void VREP::setJointPos(int handle, float joint){
     if(s != 0)
         throw("Can not set joint position target");
 }
+
+float VREP::getJointPos(int handle){
+    float joint;
+    int s = simxGetJointPosition(VREP::clientID, handle, &joint, VREP::mode);
+    if(s != 0)
+        throw("Can not get joint position target");
+    return joint;
+}

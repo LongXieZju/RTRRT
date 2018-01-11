@@ -89,6 +89,7 @@ int main(){
     srand((unsigned)time(0));  //random sample differently every time
     
     std::cout << (double)rand()/RAND_MAX << std::endl;
+    std::string file_path = "/Users/xielong/Desktop/save_data/online/";
     
     // Manipulator model, contains forward and backward kinematics models
     Eigen::MatrixXd manipulator_dh(7,4);
@@ -111,7 +112,7 @@ int main(){
     Eigen::MatrixXd goal_position = v.getPosition(goal_handle);
     std::cout << "****goal_position****" << std::endl;
     std::cout << goal_position.transpose() << std::endl;
-    int obstacles[3] = {v.getHandle("obstacle_4"), v.getHandle("obstacle_2"), v.getHandle("obstacle_3")};
+    int obstacles[3] = {v.getHandle("obstacle_1"), v.getHandle("obstacle_2"), v.getHandle("obstacle_3")};
     std::cout << "****obs_handle****" << std::endl;
     std::cout << obstacles[0] << "," << obstacles[1] << "," << obstacles[2] << std::endl;
     Eigen::MatrixXd obs_position = getObstaclesPos(obstacles, v);
@@ -131,7 +132,7 @@ int main(){
     std::cout << obs_position.transpose() << std::endl;
     
     //Save obstacles position
-    std::ofstream obs_out("/Users/xielong/Desktop/save_data/online/obs_position.txt", std::ios::out | std::ios::trunc);
+    std::ofstream obs_out(file_path + "obs_position.txt", std::ios::out | std::ios::trunc);
     if (obs_out.is_open())
     {
         obs_out << obs_position.transpose() << "\n";
@@ -199,7 +200,7 @@ int main(){
     std::cout <<"RRT Running Time : "<<(double)(ends_jacob - start_jacob)/ CLOCKS_PER_SEC << std::endl;
     
     //Save the tree
-    std::ofstream tree_out("/Users/xielong/Desktop/save_data/online/tree.txt", std::ios::out | std::ios::trunc);
+    std::ofstream tree_out(file_path + "tree.txt", std::ios::out | std::ios::trunc);
     if (tree_out.is_open())
     {
         tree_out << seven_arm.tree << "\n";
@@ -276,7 +277,7 @@ int main(){
     int obh = v.getHandle("obstacle_1");
     
     Eigen::MatrixXd obs1_position = v.getPosition(obh);
-    std::ofstream path_out("/Users/xielong/Desktop/save_data/online/path.txt", std::ios::out | std::ios::trunc);
+    std::ofstream path_out(file_path + "path.txt", std::ios::out | std::ios::trunc);
     
     v.simStart();
     for(int i = 0; i < 80; ++i){
@@ -290,10 +291,10 @@ int main(){
         seven_arm.goal_angle = seven_arm.ikineStart(goal_position, seven_arm.goal_angle);
         
         //Save the path
-//        if (path_out.is_open()){
-//            path_out << v_arm.getJointAngle().transpose() << "\n";
-//            v_arm.getJointAngle();
-//        }
+        if (path_out.is_open()){
+            path_out << v_arm.getJointAngle().transpose() << "\n";
+            v_arm.getJointAngle();
+        }
         
         if(!seven_arm.back_trace.empty()){
             path_ind = seven_arm.back_trace.top();
