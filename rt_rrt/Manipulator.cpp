@@ -51,6 +51,9 @@ Eigen::MatrixXd Manipulator::getDhParam(){
 void Manipulator::setGoalPosition(Eigen::MatrixXd goal_position){
     Manipulator::goal_position = goal_position;
     Manipulator::goal_angle = Manipulator::ikine(goal_position);
+    Manipulator::goal_angle << 1.1361, 0.3742, 0.0850, 1.3542, 0.0052, 1.4092, -0.2898;
+    Manipulator::goal_angle_2 = Manipulator::ikine(goal_position);
+    Manipulator::goal_angle_2 << 0.3983, 1.1493, 1.8270, -1.7874, -1.1668, -1.2779, -0.2898;
 }
 
 void Manipulator::setStartState(Eigen::MatrixXd joint_angle){
@@ -136,6 +139,42 @@ Eigen::MatrixXd Manipulator::ikine(Eigen::MatrixXd goal_position){
 
     Eigen::MatrixXd joint_angle(7,1);
     joint_angle << 0, 0, 0, M_PI/2, 0, M_PI/2, 0;
+    while(nm_error > stol){
+        end_position = Manipulator::fkine(joint_angle).col(3);
+        error = goal_position - end_position;
+        B.block(0,0,3,1) = error;
+        jacob = Manipulator::jacob(joint_angle);
+        jacob_t = jacob.transpose();
+        A = jacob*jacob_t + lamda*lamda * I;
+        f = A.lu().solve(B);
+        joint_angle = joint_angle + jacob_t * f;
+        nm_error = error.norm();
+        count += 1;
+        if(count > ilimit){
+            std::cout<< "Solution wouldn't converge" << std::endl;
+            break;
+        }
+    }
+    return joint_angle;
+}
+
+Eigen::MatrixXd Manipulator::ikineStart(Eigen::MatrixXd goal_position, Eigen::MatrixXd joint_angle){
+    float lamda = 0.2;           // damping constant
+    float stol = 1e-3;           // tolerance
+    float nm_error = 100;        // initial error
+    int count = 0;             // iteration count
+    int ilimit = 1000;         // maximum iteration
+    Eigen::MatrixXd end_position;
+    Eigen::MatrixXd error;
+    Eigen::MatrixXd jacob;
+    Eigen::MatrixXd jacob_t;
+    Eigen::MatrixXd A;
+    Eigen::MatrixXd B = Eigen::MatrixXd::Zero(6, 1);
+    Eigen::MatrixXd I = Eigen::MatrixXd::Identity(6, 6);
+    Eigen::MatrixXd f;
+    
+    //    Eigen::MatrixXd joint_angle(7,1);
+    //    joint_angle << 0, 0, 0, M_PI/2, 0, M_PI/2, 0;
     while(nm_error > stol){
         end_position = Manipulator::fkine(joint_angle).col(3);
         error = goal_position - end_position;
