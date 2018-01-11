@@ -22,15 +22,15 @@ Manipulator::Manipulator(Eigen::MatrixXd dh_param){
     Manipulator::max_iter = 10000;
     Manipulator::step_div = 2;
     Manipulator::obstacle_num = 3;
-    Manipulator::node_max_step = 0.0462; // sqrt(sum(((1 * pi / 180)*ones(7, 1)).^2))
-//    Manipulator::node_max_step = 0.1;
+//    Manipulator::node_max_step = 0.0462; // sqrt(sum(((1 * pi / 180)*ones(7, 1)).^2))
+    Manipulator::node_max_step = 0.1;
 
     Manipulator::max_ang = 130*M_PI/180 * Eigen::MatrixXd::Ones(Manipulator::link_num, 1);
-    Manipulator::min_ang = -45*M_PI/180 * Eigen::MatrixXd::Ones(Manipulator::link_num, 1);
+    Manipulator::min_ang = -90*M_PI/180 * Eigen::MatrixXd::Ones(Manipulator::link_num, 1);
     Manipulator::arm_radius = 0.04;
     Manipulator::rewire_radius = 0.03;
 
-    Manipulator::tree = Eigen::MatrixXd::Zero(Manipulator::link_num, Manipulator::max_iter);
+    Manipulator::tree = Eigen::MatrixXd::Zero(Manipulator::link_num, Manipulator::max_iter+1);
     Manipulator::parent = Eigen::MatrixXd::Zero(1, Manipulator::max_iter);
     Manipulator::children = Eigen::MatrixXd::Zero(1, Manipulator::max_iter);
     Manipulator::sum_cost = Eigen::MatrixXd::Zero(1, Manipulator::max_iter);
@@ -53,7 +53,9 @@ void Manipulator::setGoalPosition(Eigen::MatrixXd goal_position){
     Manipulator::goal_angle = Manipulator::ikine(goal_position);
     Manipulator::goal_angle << 1.1361, 0.3742, 0.0850, 1.3542, 0.0052, 1.4092, -0.2898;
     Manipulator::goal_angle_2 = Manipulator::ikine(goal_position);
-    Manipulator::goal_angle_2 << 0.3983, 1.1493, 1.8270, -1.7874, -1.1668, -1.2779, -0.2898;
+//    Manipulator::goal_angle_2 << 0.3983, 1.1493, 1.8270, -1.7874, -1.1668, -1.2779, -0.2898;
+    Manipulator::goal_angle_2 << 0.3684, 0.8282, 1.4708, 1.3542, -0.7964, 1.6225, -0.2898;
+//    Manipulator::goal_angle_2 << 2.0223, 0.7854, -1.4162, 1.3542, 0.8088, 1.6292, -0.2898;
 }
 
 void Manipulator::setStartState(Eigen::MatrixXd joint_angle){
@@ -209,7 +211,11 @@ Eigen::Matrix4Xd Manipulator::transMatrix (Eigen::MatrixXd link, float q){
 Eigen::MatrixXd Manipulator::sampleNode(){
     Eigen::MatrixXd state;
     if((double)rand()/RAND_MAX < Manipulator::goal_bais){
-        state = Manipulator::goal_angle + Eigen::MatrixXd::Random(Manipulator::link_num, 1) * Manipulator::node_max_step;
+        if((double)rand()/RAND_MAX < 0.3){
+            state = Manipulator::goal_angle_2 + Eigen::MatrixXd::Random(Manipulator::link_num, 1) * Manipulator::node_max_step;
+        }else{
+            state = Manipulator::goal_angle + Eigen::MatrixXd::Random(Manipulator::link_num, 1) * Manipulator::node_max_step;
+        }
     }else{
         Eigen::MatrixXd step = Manipulator::max_ang - Manipulator::min_ang;
         Eigen::MatrixXd random = (Eigen::MatrixXd::Random(Manipulator::link_num, 1)
@@ -303,7 +309,12 @@ int Manipulator::obstacleCollision(Eigen::MatrixXd& new_node, int& nearest_node_
 int Manipulator::obstacleCollision(Eigen::MatrixXd& new_node, Eigen::MatrixXd& nearest_node, Eigen::MatrixXd& obs_position){
     Eigen::MatrixXd dist_temp = new_node - nearest_node;
     double dist = dist_temp.norm();
-    Eigen::MatrixXd vector = dist_temp/dist;
+    Eigen::MatrixXd vector;
+    if(dist == 0){
+        vector = dist_temp * dist;
+    }else{
+        vector = dist_temp/dist;
+    }
     double step = dist / Manipulator::step_div;
 
     Eigen::MatrixXd state_angle;

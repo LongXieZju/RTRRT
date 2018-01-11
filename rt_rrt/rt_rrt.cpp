@@ -11,6 +11,7 @@
 #include <queue>
 #include <set>
 #include <eigen3/Eigen/Geometry>
+#include <fstream>
 #include "Manipulator.hpp"
 #include "VREP.hpp"
 #include "VREP_arm.hpp"
@@ -77,8 +78,17 @@ void rootRewire(int root_node, Manipulator& seven_arm, flann::Index<flann::L2<do
     }
 }
 
+/*****************************
+ *****************************
+ *****************************
+ *****************************
+ *****************************
+ *****************************/
+
 int main(){
     srand((unsigned)time(0));  //random sample differently every time
+    
+    std::cout << (double)rand()/RAND_MAX << std::endl;
     
     // Manipulator model, contains forward and backward kinematics models
     Eigen::MatrixXd manipulator_dh(7,4);
@@ -101,7 +111,7 @@ int main(){
     Eigen::MatrixXd goal_position = v.getPosition(goal_handle);
     std::cout << "****goal_position****" << std::endl;
     std::cout << goal_position.transpose() << std::endl;
-    int obstacles[3] = {v.getHandle("obstacle_1"), v.getHandle("obstacle_2"), v.getHandle("obstacle_3")};
+    int obstacles[3] = {v.getHandle("obstacle_4"), v.getHandle("obstacle_2"), v.getHandle("obstacle_3")};
     std::cout << "****obs_handle****" << std::endl;
     std::cout << obstacles[0] << "," << obstacles[1] << "," << obstacles[2] << std::endl;
     Eigen::MatrixXd obs_position = getObstaclesPos(obstacles, v);
@@ -120,6 +130,14 @@ int main(){
     std::cout << "****obs_position****" << std::endl;
     std::cout << obs_position.transpose() << std::endl;
     
+    //Save obstacles position
+    std::ofstream obs_out("/Users/xielong/Desktop/save_data/online/obs_position.txt", std::ios::out | std::ios::trunc);
+    if (obs_out.is_open())
+    {
+        obs_out << obs_position.transpose() << "\n";
+        obs_out.close();
+        std::cout << "Success store the obstacles' position!" << std::endl;
+    }
     
     //KD-tree
     std::vector<std::vector<int> > index;
@@ -155,9 +173,10 @@ int main(){
         if(seven_arm.obstacleCollision(new_node, nearest_node_ind, obs_position)){
             flann::Matrix<double> query(new_node.data(), 1, 7);
             
-            //            kd_tree.radiusSearch(query, neighbors, dist, seven_arm.rewire_radius, flann::SearchParams(32, 0, false));
-            //            seven_arm.chooseParent(new_node, neighbors, nearest_node_ind, obs_position, new_node_ind);
-            //            seven_arm.rewire(new_node, neighbors, obs_position);
+            //RRT*
+//            kd_tree.radiusSearch(query, neighbors, dist, seven_arm.rewire_radius, flann::SearchParams(32, 0, false));
+//            seven_arm.chooseParent(new_node, neighbors, nearest_node_ind, obs_position, new_node_ind);
+//            seven_arm.rewire(new_node, neighbors, obs_position);
             
             seven_arm.insertNode(new_node, nearest_node_ind, new_node_ind);
             flann::Matrix<double> node(seven_arm.tree.col(new_node_ind).data(), 1, 7);
@@ -179,6 +198,15 @@ int main(){
     clock_t ends_jacob = clock();
     std::cout <<"RRT Running Time : "<<(double)(ends_jacob - start_jacob)/ CLOCKS_PER_SEC << std::endl;
     
+    //Save the tree
+    std::ofstream tree_out("/Users/xielong/Desktop/save_data/online/tree.txt", std::ios::out | std::ios::trunc);
+    if (tree_out.is_open())
+    {
+        tree_out << seven_arm.tree << "\n";
+        tree_out.close();
+        std::cout << "Success store tree!" << std::endl;
+    }
+    
     //Find shortest path
     double sum_cost;
     double temp_cost;
@@ -186,8 +214,14 @@ int main(){
     int parent = -1;
     flann::Matrix<double> goal_node(seven_arm.goal_angle.data(), 1, 7);
     kd_tree.radiusSearch(goal_node, neighbors, dist, seven_arm.node_max_step, flann::SearchParams(32, 0, false));
+    std::cout << "nearest distance:" << dist[0][0] << std::endl;
+    if(neighbors[0].size() == 0){
+        std::cout << "no near nodes" << std::endl;
+        return 0;
+    }
     seven_arm.chooseParent(new_node, neighbors, neighbors[0][0], obs_position, new_node_ind);
     //    seven_arm.rewire(seven_arm.goal_angle, neighbors, obs_position);
+    
     for(int i = 0; i < neighbors[0].size(); ++i){
         if(seven_arm.obstacleCollision(seven_arm.goal_angle, neighbors[0][i], obs_position)){
             sum_cost = 0;
@@ -210,7 +244,7 @@ int main(){
     }else{
         std::cout << "Can not find path" << std::endl;
         v.simStop();
-        //        return 0;
+        return 0;
     }
     std::cout << "**** iterations ****" << std::endl;
     std::cout << count << " " << "Nodes" << std::endl;
@@ -234,29 +268,38 @@ int main(){
     //    obs3_vector << 0, 0, 0;
     
     obs1_vector << -1, 0, 0;
-    obs3_vector << -1, 1, 0;
+    obs3_vector << 0, 0, 1;
     goal_vector << 1, 0.1, 0;
-    double obs1_vel = 0.012;
-    double obs3_vel = 0.008;
-    double goal_vel = 0.000;
+    double obs1_vel = 0.017;
+    double obs3_vel = 0.08;
+    double goal_vel = 0.00;
     int obh = v.getHandle("obstacle_1");
     
     Eigen::MatrixXd obs1_position = v.getPosition(obh);
+    std::ofstream path_out("/Users/xielong/Desktop/save_data/online/path.txt", std::ios::out | std::ios::trunc);
     
     v.simStart();
-    for(int i = 0; i < 60; ++i){
+    for(int i = 0; i < 80; ++i){
         v.setPosition(obh, obs1_position);
         v.setPosition(obstacles[2], obs3_position);
         v.setPosition(goal_handle, goal_position);
         obs_position.col(0) = obs1_position;
         obs_position.col(2) = obs3_position;
         
+        //        seven_arm.goal_angle = seven_arm.ikine(goal_position);
         seven_arm.goal_angle = seven_arm.ikineStart(goal_position, seven_arm.goal_angle);
+        
+        //Save the path
+//        if (path_out.is_open()){
+//            path_out << v_arm.getJointAngle().transpose() << "\n";
+//            v_arm.getJointAngle();
+//        }
         
         if(!seven_arm.back_trace.empty()){
             path_ind = seven_arm.back_trace.top();
             std::cout << "**** root ****" << std::endl;
             std::cout << "root_index: " << path_ind << std::endl;
+            
             joint_angle = seven_arm.tree.col(path_ind);
             v_arm.setJointPos(joint_angle - seven_arm.start_angle);
             seven_arm.back_trace.pop();
@@ -274,7 +317,6 @@ int main(){
                         }
                     }
                 }
-                std::cout << "**** parent ****" << std::endl;
                 std::cout << parent << std::endl;
                 seven_arm.findPath(parent);
             }
@@ -285,23 +327,42 @@ int main(){
         }
         if(!seven_arm.obstacleCollision(seven_arm.goal_angle, seven_arm.goal_angle, obs_position)){
             std::cout << "Can't reach the goal" << std::endl;
-            std::cout << "Obstacle_3 position : " << v.getPosition(obstacles[2]) << std::endl;
-            seven_arm.goal_angle << 0.3983, 1.1493, 1.8270, 1.3542, -1.1668, 1.8637, -0.2898;
-            std::cout << "Change the goal to : "<< "\n" << v.getPosition(obstacles[2]) << std::endl;
+            std::cout << "Obstacles position : " << obs_position << std::endl;
+//            seven_arm.goal_angle << 0.3983, 1.1493, 1.8270, 1.3542, -1.1668, 1.8637, -0.2898;
+//            seven_arm.goal_angle << 0.3684, 0.8282, 1.4708, 1.3542, -0.7964, 1.6225, -0.2898;
+            seven_arm.goal_angle = seven_arm.goal_angle_2;
+            std::cout << "Change the goal to : "<< "\n" << seven_arm.goal_angle << std::endl;
             obs3_vel = 0.002;
+            
             flann::Matrix<double> goal_node(seven_arm.goal_angle.data(), 1, 7);
-            kd_tree.radiusSearch(goal_node, neighbors, dist, seven_arm.node_max_step, flann::SearchParams(32, 0, false));
+            kd_tree.radiusSearch(goal_node, neighbors, dist, 100, flann::SearchParams(32, 0, false));
+            std::cout << "nearest distance change:" << dist[0][0] << std::endl;
+            min_cost = INFINITY;
+            for(int i = 0; i < neighbors[0].size(); ++i){
+                if(seven_arm.obstacleCollision(seven_arm.goal_angle, neighbors[0][i], obs_position)){
+                    sum_cost = 0;
+                    temp_cost = seven_arm.sumCost(neighbors[0][i], sum_cost) + (seven_arm.tree.col(neighbors[0][i]) - seven_arm.goal_angle).norm();
+                    if(temp_cost < min_cost){
+                        min_cost = temp_cost;
+                        parent = neighbors[0][i];
+                    }
+                }
+            }
+            std::cout << parent << std::endl;
+//            seven_arm.findPath(parent);
+            if(neighbors[0].size() == 0){
+                std::cout << "no near nodes change" << std::endl;
+                return 0;
+            }
         }
         obs1_position = v.getPosition(obh) + obs1_vel * time_step * obs1_vector / obs1_vector.norm() * i;
         obs3_position = v.getPosition(obstacles[2]) + obs3_vel * time_step * obs3_vector / obs3_vector.norm() * i;
         goal_position = v.getPosition(goal_handle) + goal_vel * time_step * goal_vector / goal_vector.norm() * i;
     }
-    v.simSleep(100);
+    v.simSleep(10000);
     v.simStop();
+    path_out.close();
+    std::cout << "Success store the path!" << std::endl;
     
     return 0;
 }
-
-
-
-
