@@ -78,8 +78,45 @@ void rootRewire(int root_node, Manipulator& seven_arm, flann::Index<flann::L2<do
     }
 }
 
+std::vector<float> split(const std::string &s, char delim)
+{
+    std::stringstream ss(s);
+    std::string item;
+    std::vector<float> elems;
+    
+    while (std::getline(ss, item, delim))
+    {
+        if(!item.empty()){
+            elems.push_back(atof(item.c_str()));
+        }
+    }
+    
+    return elems;
+}
+
+std::vector<float> readData(std::ifstream &tree_infile){
+    std::string line;
+    std::vector<float> group_elems;
+    if(tree_infile.is_open()){
+        std::cout << "Open file successfully." << std::endl;
+        while(std::getline(tree_infile, line)){
+            group_elems = (split(line, ' '));
+            return group_elems;
+        }
+    }else{
+        std::cout << "Can not open file." << std::endl;
+    }
+    return group_elems;
+}
+/**************************************
+ **************************************
+ **************************************
+ **************************************
+ **************************************
+ **************************************/
 int main(){
     srand((unsigned)time(0));  //random sample differently every time
+    std::string file_path = "/Users/xielong/Desktop/save_data/store_data/";
 
     // Manipulator model, contains forward and backward kinematics models
     Eigen::MatrixXd manipulator_dh(7,4);
@@ -122,7 +159,7 @@ int main(){
     std::cout << obs_position.transpose() << std::endl;
     
     //Save obstacles position
-    std::ofstream obs_out("/Users/xielong/Desktop/save_data/obs_position.txt", std::ios::out | std::ios::trunc);
+    std::ofstream obs_out(file_path + "obs_position.txt", std::ios::out | std::ios::trunc);
     if (obs_out.is_open())
     {
         obs_out << obs_position.transpose() << "\n";
@@ -134,9 +171,10 @@ int main(){
     std::vector<std::vector<int> > index;
     std::vector<std::vector<int> > neighbors;
     std::vector<std::vector<double> > dist;
-    flann::Matrix<double> point(joint_start.data(), 1, seven_arm.link_num);
-    flann::Index<flann::L2<double>> kd_tree(point, flann::KDTreeIndexParams(4));
-    kd_tree.buildIndex();
+//    flann::Matrix<double> point(joint_start.data(), 1, seven_arm.link_num);
+//    flann::Index<flann::L2<double>> kd_tree(point, flann::KDTreeIndexParams(4));
+//    kd_tree.buildIndex();
+    
 
 
     //RRT
@@ -150,52 +188,148 @@ int main(){
 
     //v.simStart();
     int count = 0;
-    clock_t start_jacob = clock();
-    for(int i = 0; i < seven_arm.max_iter; i++){
-        count++;
-        new_node = seven_arm.sampleNode();
-        flann::Matrix<double> query(new_node.data(), 1, 7);
-        kd_tree.knnSearch(query, index, dist, 1, flann::SearchParams(32, 0, false));
-        nearest_node_ind = index[0][0];
-        min_dist = sqrt(dist[0][0]);
-        if(min_dist  > seven_arm.node_max_step){
-            seven_arm.steer(new_node, nearest_node_ind);
+    std::string line;
+    int max_iteration = 10000;
+    std::ifstream tree_infile(file_path + "tree.txt");
+    if(tree_infile.is_open()){
+        //Restore the tree
+        int line_num = 0;
+        while(std::getline(tree_infile, line)){
+            std::vector<float> group_elems;
+            group_elems = (split(line, ' '));
+            for (int index = 0; index < max_iteration; index++)
+            {
+                seven_arm.tree(line_num, index) = group_elems[index];
+            }
+            line_num++;
         }
-        if(seven_arm.obstacleCollision(new_node, nearest_node_ind, obs_position)){
+        
+        //Rebuild KD Tree
+//        flann::Matrix<double> point(seven_arm.tree.data(), seven_arm.max_iter, seven_arm.link_num);
+//        flann::Index<flann::L2<double>> kd_tree(point, flann::SavedIndexParams(file_path + "kd_tree.txt"));
+        
+        
+        
+        //Restore the parent
+        std::ifstream parent_infile(file_path + "parent.txt");
+        if (parent_infile.is_open())
+        {
+            std::vector<float> group_elems;
+            group_elems = readData(parent_infile);
+            for (int index = 0; index < max_iteration; index++)
+            {
+                seven_arm.parent(index) = group_elems[index];
+            }
+        }
+        
+        //Restore the children
+        std::ifstream children_infile(file_path + "children.txt");
+        if (children_infile.is_open())
+        {
+            std::vector<float> group_elems;
+            group_elems = readData(children_infile);
+            for (int index = 0; index < max_iteration; index++)
+            {
+                seven_arm.children(index) = group_elems[index];
+            }
+        }
+        
+        //Restore the sumCost
+        std::ifstream csumCost_infile(file_path + "sumCost.txt");
+        if (csumCost_infile.is_open())
+        {
+            std::vector<float> group_elems;
+            group_elems = readData(csumCost_infile);
+            for (int index = 0; index < max_iteration; index++)
+            {
+                seven_arm.sum_cost(index) = group_elems[index];
+            }
+        }
+        tree_infile.close();
+        parent_infile.close();
+        children_infile.close();
+//        csumCost_infile.close();
+//        return 0;
+    }else{
+        flann::Matrix<double> point(joint_start.data(), 1, seven_arm.link_num);
+        flann::Index<flann::L2<double>> kd_tree(point, flann::KDTreeIndexParams(4));
+        kd_tree.buildIndex();
+        clock_t start_jacob = clock();
+        for(int i = 0; i < seven_arm.max_iter; i++){
+            count++;
+            new_node = seven_arm.sampleNode();
             flann::Matrix<double> query(new_node.data(), 1, 7);
-            
-//            kd_tree.radiusSearch(query, neighbors, dist, seven_arm.rewire_radius, flann::SearchParams(32, 0, false));
-//            seven_arm.chooseParent(new_node, neighbors, nearest_node_ind, obs_position, new_node_ind);
-//            seven_arm.rewire(new_node, neighbors, obs_position);
-            
-            seven_arm.insertNode(new_node, nearest_node_ind, new_node_ind);
-            flann::Matrix<double> node(seven_arm.tree.col(new_node_ind).data(), 1, 7);
-            kd_tree.addPoints(node);
-//            if((new_node - seven_arm.goal_angle).norm() < seven_arm.node_max_step){
-//                if(seven_arm.obstacleCollision(new_node, seven_arm.goal_angle, obs_position)){
-//                    seven_arm.findPath(new_node_ind);
-//                    double cost = 0;
-//                    seven_arm.sumCost(new_node_ind, cost);
-//                    cost = cost + (seven_arm.tree.col(new_node_ind) - seven_arm.goal_angle).norm();
-//                    std::cout << "**************" << std::endl;
-//                    std::cout << "Find path: " << cost << std::endl;
-//                    std::stack<int>().swap(seven_arm.back_trace);
-//                    break;
-//                }
-//            }
+            kd_tree.knnSearch(query, index, dist, 1, flann::SearchParams(32, 0, false));
+            nearest_node_ind = index[0][0];
+            min_dist = sqrt(dist[0][0]);
+            if(min_dist  > seven_arm.node_max_step){
+                seven_arm.steer(new_node, nearest_node_ind);
+            }
+            if(seven_arm.obstacleCollision(new_node, nearest_node_ind, obs_position)){
+                flann::Matrix<double> query(new_node.data(), 1, 7);
+                
+//                kd_tree.radiusSearch(query, neighbors, dist, seven_arm.rewire_radius, flann::SearchParams(32, 0, false));
+//                seven_arm.chooseParent(new_node, neighbors, nearest_node_ind, obs_position, new_node_ind);
+//                seven_arm.rewire(new_node, neighbors, obs_position);
+                
+                seven_arm.insertNode(new_node, nearest_node_ind, new_node_ind);
+                flann::Matrix<double> node(seven_arm.tree.col(new_node_ind).data(), 1, 7);
+                kd_tree.addPoints(node);
+    //            if((new_node - seven_arm.goal_angle).norm() < seven_arm.node_max_step){
+    //                if(seven_arm.obstacleCollision(new_node, seven_arm.goal_angle, obs_position)){
+    //                    seven_arm.findPath(new_node_ind);
+    //                    double cost = 0;
+    //                    seven_arm.sumCost(new_node_ind, cost);
+    //                    cost = cost + (seven_arm.tree.col(new_node_ind) - seven_arm.goal_angle).norm();
+    //                    std::cout << "**************" << std::endl;
+    //                    std::cout << "Find path: " << cost << std::endl;
+    //                    std::stack<int>().swap(seven_arm.back_trace);
+    //                    break;
+    //                }
+    //            }
+            }
+        }
+        clock_t ends_jacob = clock();
+        std::cout <<"RRT Running Time : "<<(double)(ends_jacob - start_jacob)/ CLOCKS_PER_SEC << std::endl;
+        
+        //Save the tree
+        std::ofstream tree_out(file_path + "tree.txt", std::ios::out | std::ios::trunc);
+        if (tree_out.is_open())
+        {
+            tree_out << seven_arm.tree << "\n";
+            tree_out.close();
+            std::cout << "Success store tree!" << std::endl;
+        }
+        //Save the parent
+        std::ofstream parent_out(file_path + "parent.txt", std::ios::out | std::ios::trunc);
+        if (parent_out.is_open())
+        {
+            parent_out << seven_arm.parent << "\n";
+            parent_out.close();
+            std::cout << "Success store parent!" << std::endl;
+        }
+        //Save the children
+        std::ofstream children_out(file_path + "children.txt", std::ios::out | std::ios::trunc);
+        if (children_out.is_open())
+        {
+            children_out << seven_arm.children << "\n";
+            children_out.close();
+            std::cout << "Success store children!" << std::endl;
+        }
+        //Save the sumCost
+        std::ofstream csumCost_out(file_path + "sumCost.txt", std::ios::out | std::ios::trunc);
+        if (csumCost_out.is_open())
+        {
+            csumCost_out << seven_arm.sum_cost << "\n";
+            csumCost_out.close();
+            std::cout << "Success store sumCost!" << std::endl;
         }
     }
-    clock_t ends_jacob = clock();
-    std::cout <<"RRT Running Time : "<<(double)(ends_jacob - start_jacob)/ CLOCKS_PER_SEC << std::endl;
+    flann::Matrix<double> point(seven_arm.tree.data(), seven_arm.max_iter, seven_arm.link_num);
+    flann::Index<flann::L2<double>> kd_tree(point, flann::KDTreeIndexParams(4));
+    kd_tree.buildIndex();
+//    flann::Matrix<double> node(seven_arm.tree.col(new_node_ind).data(), 1, 7);
     
-    //Save the tree
-    std::ofstream tree_out("/Users/xielong/Desktop/save_data/tree.txt", std::ios::out | std::ios::trunc);
-    if (tree_out.is_open())
-    {
-        tree_out << seven_arm.tree << "\n";
-        tree_out.close();
-        std::cout << "Success store tree!" << std::endl;
-    }
 
     //Find shortest path
     double sum_cost;
@@ -204,6 +338,7 @@ int main(){
     int parent = -1;
     flann::Matrix<double> goal_node(seven_arm.goal_angle.data(), 1, 7);
     kd_tree.radiusSearch(goal_node, neighbors, dist, 0.0162, flann::SearchParams(32, 0, false));
+    std::cout << neighbors[0][0] << std::endl;
     seven_arm.chooseParent(new_node, neighbors, neighbors[0][0], obs_position, new_node_ind);
 //    seven_arm.rewire(seven_arm.goal_angle, neighbors, obs_position);
     for(int i = 0; i < neighbors[0].size(); ++i){
@@ -235,28 +370,6 @@ int main(){
     std::cout << "**** node_added ****" << std::endl;
     std::cout << seven_arm.node_added << " " << "Nodes" << std::endl;
     
-//    //Save the path
-//    std::ofstream path_out("/Users/xielong/Desktop/save_data/path.txt", std::ios::out | std::ios::trunc);
-//    if (path_out.is_open())
-//    {
-//        v.simStart();
-//        for(int i = 0; i < seven_arm.back_trace.size(); i++){
-//            path_out << seven_arm.back_trace.top() << "\n";
-//            int path_ind = seven_arm.back_trace.top();
-//            std::cout << "**** root ****" << std::endl;
-//            std::cout << "root_index: " << path_ind << std::endl;
-//            Eigen::MatrixXd joint_angle = seven_arm.tree.col(path_ind);
-//            v_arm.setJointPos(joint_angle - seven_arm.start_angle);
-//            seven_arm.back_trace.pop();
-//            v.simSleep(500);
-//        }
-//        path_out.close();
-//        std::cout << "Success store the path!" << std::endl;
-//        v.simStop();
-//    }
-//    seven_arm.findPath(parent);
-    
-    
     //Control V-rep manipulator
     int path_ind;
     double time_step = 0.05;
@@ -265,14 +378,11 @@ int main(){
     Eigen::MatrixXd obs2_position = v.getPosition(obstacles[1]);
     Eigen::MatrixXd obs3_position = v.getPosition(obstacles[2]);
 //    Eigen::MatrixXd goal_position = v.getPosition('goal');
-//    double obs1_vel = 0.1;
-//    double obs3_vel = 0.01;
+
     Eigen::MatrixXd obs1_vector(3, 1);
     Eigen::MatrixXd obs3_vector(3, 1);
     Eigen::MatrixXd goal_vector(3, 1);
-//    obs1_vector << -1, 0, 0.2;
-//    obs3_vector << 0, 0, 0;
-    
+
     obs1_vector << -1, 0, 0;
     obs3_vector << -1, 1, 0;
     goal_vector << 1, 0.1, 0;
@@ -285,10 +395,10 @@ int main(){
     int obh = v.getHandle("obstacle_1");
     
     Eigen::MatrixXd obs1_position = v.getPosition(obh);
-    std::ofstream path_out_2("/Users/xielong/Desktop/save_data/path.txt", std::ios::out | std::ios::trunc);
+    std::ofstream path_out_2(file_path + "path.txt", std::ios::out | std::ios::trunc);
     
     v.simStart();
-    for(int i = 0; i < 60; ++i){
+    for(int i = 0; i < 80; ++i){
         v.setPosition(obh, obs1_position);
         v.setPosition(obstacles[2], obs3_position);
         v.setPosition(goal_handle, goal_position);
