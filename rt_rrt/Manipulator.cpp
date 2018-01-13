@@ -28,7 +28,7 @@ Manipulator::Manipulator(Eigen::MatrixXd dh_param){
     Manipulator::max_ang = 130*M_PI/180 * Eigen::MatrixXd::Ones(Manipulator::link_num, 1);
     Manipulator::min_ang = -90*M_PI/180 * Eigen::MatrixXd::Ones(Manipulator::link_num, 1);
     Manipulator::arm_radius = 0.04;
-    Manipulator::rewire_radius = 0.03;
+    Manipulator::rewire_radius = 0.05;
 
     Manipulator::tree = Eigen::MatrixXd::Zero(Manipulator::link_num, Manipulator::max_iter+1);
     Manipulator::parent = Eigen::MatrixXd::Zero(1, Manipulator::max_iter);
@@ -212,7 +212,7 @@ Eigen::MatrixXd Manipulator::sampleNode(){
     Eigen::MatrixXd state;
     if((double)rand()/RAND_MAX < Manipulator::goal_bais){
         if((double)rand()/RAND_MAX < 0.3){
-            state = Manipulator::goal_angle_2 + Eigen::MatrixXd::Random(Manipulator::link_num, 1) * Manipulator::node_max_step;
+            state = Manipulator::goal_angle + Eigen::MatrixXd::Random(Manipulator::link_num, 1) * Manipulator::node_max_step;
         }else{
             state = Manipulator::goal_angle + Eigen::MatrixXd::Random(Manipulator::link_num, 1) * Manipulator::node_max_step;
         }
