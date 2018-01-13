@@ -70,6 +70,7 @@ public:
     Eigen::Matrix4Xd transMatrix(Eigen::MatrixXd manipulator_dh, float q);
     
     Eigen::MatrixXd sampleNode();
+    Eigen::MatrixXd sampleNode(Eigen::MatrixXd goal_node);
 //    Eigen::MatrixXd steer(Eigen::MatrixXd new_node, int nearest_node_ind);
     void steer(Eigen::MatrixXd& new_node, int& nearest_node_ind);
     void getNearestNode(Eigen::MatrixXd node, NearestNode* nearest_node);

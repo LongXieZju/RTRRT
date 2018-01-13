@@ -38,7 +38,6 @@ void rootRewire(int root_node, Manipulator& seven_arm, flann::Index<flann::L2<do
     std::vector<std::vector<double> > dist;
     Eigen::MatrixXd new_node(seven_arm.link_num,1);
     
-    
     int root;
     double old_cost;
     double new_cost;
@@ -92,7 +91,7 @@ int main(){
     srand((unsigned)time(0));  //random sample differently every time
     
     std::cout << (double)rand()/RAND_MAX << std::endl;
-    std::string file_path = "/Users/xielong/Desktop/save_data/online_1_13_01_13/";
+    std::string file_path = "/Users/xielong/Desktop/save_data/online_contrast/";
     
 //    //Set time to run other code
 //    struct timeval begin_t; //(1)
@@ -136,10 +135,19 @@ int main(){
     Eigen::MatrixXd goal_position = v.getPosition(goal_handle);
     std::cout << "****goal_position****" << std::endl;
     std::cout << goal_position.transpose() << std::endl;
-    int obstacles[3] = {v.getHandle("obstacle_1"), v.getHandle("obstacle_2"), v.getHandle("obstacle_3")};
+    int obstacles[3] = {v.getHandle("obstacle_4"), v.getHandle("obstacle_2"), v.getHandle("obstacle_3")};
     std::cout << "****obs_handle****" << std::endl;
     std::cout << obstacles[0] << "," << obstacles[1] << "," << obstacles[2] << std::endl;
     Eigen::MatrixXd obs_position = getObstaclesPos(obstacles, v);
+    
+    //RRT
+    Eigen::MatrixXd new_node(seven_arm.link_num,1);
+    Eigen::MatrixXd neighbor_nodes;
+    Eigen::MatrixXd nodes = Eigen::MatrixXd::Zero(7, seven_arm.max_iter);
+    NearestNode nearest_node;
+    int new_node_ind;
+    int nearest_node_ind;
+    double min_dist;
     
     //KD-tree
     std::vector<std::vector<int> > index;
@@ -151,8 +159,14 @@ int main(){
     
     // VREP manipulator model
     VREP_arm v_arm("redundantRob", v.clientID, v.mode);
+    
+    while(min_cost > 3){
+        //init
+        seven_arm.tree = Eigen::MatrixXd::Zero(seven_arm.link_num, seven_arm.max_iter);
+        seven_arm.parent = Eigen::MatrixXd::Zero(1, seven_arm.max_iter);
+        seven_arm.children = Eigen::MatrixXd::Zero(1, seven_arm.max_iter);
+        seven_arm.sum_cost = Eigen::MatrixXd::Zero(1, seven_arm.max_iter);
         
-    while(min_cost > 2){
         // Setting up
         flann::Matrix<double> point(joint_start.data(), 1, seven_arm.link_num);
         flann::Index<flann::L2<double>> kd_tree(point, flann::KDTreeIndexParams(4));
@@ -175,19 +189,10 @@ int main(){
             std::cout << "Success store the obstacles' position!" << std::endl;
         }
         
-        //RRT
-        Eigen::MatrixXd new_node(seven_arm.link_num,1);
-        Eigen::MatrixXd neighbor_nodes;
-        Eigen::MatrixXd nodes = Eigen::MatrixXd::Zero(7, seven_arm.max_iter);
-        NearestNode nearest_node;
-        int new_node_ind;
-        int nearest_node_ind;
-        double min_dist;
-        
         //v.simStart();
         int count = 0;
         clock_t start_jacob = clock();
-        for(int i = 0; i < seven_arm.max_iter; i++){
+        for(int i = 0; i < seven_arm.max_iter/4; i++){
             count++;
             new_node = seven_arm.sampleNode();
             flann::Matrix<double> query(new_node.data(), 1, 7);
@@ -307,13 +312,13 @@ int main(){
     obs1_vector << -1, 0, 0;
     obs3_vector << 0, 0, 1;
     goal_vector << 1, 0.1, 0;
-//    double obs1_vel = 0.017;
-//    double obs3_vel = 0.08;
-//    double goal_vel = 0.000;
-    
-    double obs1_vel = 0.00;
-    double obs3_vel = 0.00;
+    double obs1_vel = 0.017;
+    double obs3_vel = 0.08;
     double goal_vel = 0.000;
+    
+//    double obs1_vel = 0.00;
+//    double obs3_vel = 0.00;
+//    double goal_vel = 0.000;
     int obh = v.getHandle("obstacle_1");
     
     Eigen::MatrixXd obs1_position = v.getPosition(obh);
@@ -327,7 +332,7 @@ int main(){
     
     v.simStart();
     clock_t start_motion = clock();
-    for(int i = 0; i < 60; ++i){
+    for(int i = 0; i < 80; ++i){
         v.setPosition(obh, obs1_position);
         v.setPosition(obstacles[2], obs3_position);
         v.setPosition(goal_handle, goal_position);
@@ -347,15 +352,50 @@ int main(){
                 flag = false;
 //                printf("[%ld]\n", BEGIN/1000000);
             }else{
+                //Sample
+                for(int j = 0; j < 10; j++){
+                    new_node = seven_arm.sampleNode(seven_arm.goal_angle);
+                    flann::Matrix<double> query(new_node.data(), 1, 7);
+                    kd_tree.knnSearch(query, index, dist, 1, flann::SearchParams(32, 0, false));
+                    nearest_node_ind = index[0][0];
+                    min_dist = sqrt(dist[0][0]);
+                    if(min_dist  > seven_arm.node_max_step){
+                        seven_arm.steer(new_node, nearest_node_ind);
+                    }
+                    if(seven_arm.obstacleCollision(new_node, nearest_node_ind, obs_position)){
+                        flann::Matrix<double> query(new_node.data(), 1, 7);
+                        if(seven_arm.node_added >=seven_arm.max_iter){
+                            break;
+                        }
+                        seven_arm.insertNode(new_node, nearest_node_ind, new_node_ind);
+                        flann::Matrix<double> node(seven_arm.tree.col(new_node_ind).data(), 1, 7);
+                        kd_tree.addPoints(node);
+//                        if((new_node - seven_arm.goal_angle).norm() < seven_arm.node_max_step){
+//                            if(seven_arm.obstacleCollision(new_node, seven_arm.goal_angle, obs_position)){
+//                                seven_arm.findPath(new_node_ind);
+//                                parent = new_node_ind;
+//                                double cost = 0;
+//                                seven_arm.sumCost(new_node_ind, cost);
+//                                cost = cost + (seven_arm.tree.col(new_node_ind) - seven_arm.goal_angle).norm();
+//                                std::cout << "**************" << std::endl;
+//                                std::cout << "Find path: " << cost << std::endl;
+////                                std::stack<int>().swap(seven_arm.back_trace);
+//                                break;
+//                            }
+//                        }
+                    }
+                }
+                
+                //Rewire from the root
                 if(!seven_arm.back_trace.empty()){
                     rootRewire(seven_arm.back_trace.top(), seven_arm, kd_tree, obs_position);
-                    for(int i = 0; i < neighbors[0].size(); ++i){
-                        if(seven_arm.obstacleCollision(seven_arm.goal_angle, neighbors[0][i], obs_position)){
+                    for(int n = 0; n < neighbors[0].size(); ++n){
+                        if(seven_arm.obstacleCollision(seven_arm.goal_angle, neighbors[0][n], obs_position)){
                             sum_cost = 0;
-                            temp_cost = seven_arm.sumCost(neighbors[0][i], sum_cost) + (seven_arm.tree.col(neighbors[0][i]) - seven_arm.goal_angle).norm();
+                            temp_cost = seven_arm.sumCost(neighbors[0][n], sum_cost) + (seven_arm.tree.col(neighbors[0][n]) - seven_arm.goal_angle).norm();
                             if(temp_cost < min_cost){
                                 min_cost = temp_cost;
-                                parent = neighbors[0][i];
+                                parent = neighbors[0][n];
                             }
                         }
                     }
@@ -369,7 +409,7 @@ int main(){
 //                    std::cout << "Obstacles position : " << obs_position << std::endl;
                     //            seven_arm.goal_angle << 0.3983, 1.1493, 1.8270, 1.3542, -1.1668, 1.8637, -0.2898;
                     //            seven_arm.goal_angle << 0.3684, 0.8282, 1.4708, 1.3542, -0.7964, 1.6225, -0.2898;
-                    seven_arm.goal_angle = seven_arm.goal_angle_2;
+//                    seven_arm.goal_angle = seven_arm.goal_angle_2;
 //                    std::cout << "Change the goal to : "<< "\n" << seven_arm.goal_angle << std::endl;
                     obs3_vel = 0.008;
                     
@@ -377,18 +417,16 @@ int main(){
                     kd_tree.radiusSearch(goal_node, neighbors, dist, 100, flann::SearchParams(32, 0, false));
 //                    std::cout << "nearest distance change:" << dist[0][0] << std::endl;
                     min_cost = INFINITY;
-                    for(int i = 0; i < neighbors[0].size(); ++i){
-                        if(seven_arm.obstacleCollision(seven_arm.goal_angle, neighbors[0][i], obs_position)){
+                    for(int n = 0; n < neighbors[0].size(); ++n){
+                        if(seven_arm.obstacleCollision(seven_arm.goal_angle, neighbors[0][n], obs_position)){
                             sum_cost = 0;
-                            temp_cost = seven_arm.sumCost(neighbors[0][i], sum_cost) + (seven_arm.tree.col(neighbors[0][i]) - seven_arm.goal_angle).norm();
+                            temp_cost = seven_arm.sumCost(neighbors[0][n], sum_cost) + (seven_arm.tree.col(neighbors[0][n]) - seven_arm.goal_angle).norm();
                             if(temp_cost < min_cost){
                                 min_cost = temp_cost;
-                                parent = neighbors[0][i];
+                                parent = neighbors[0][n];
                             }
                         }
                     }
-//                    std::cout << parent << std::endl;
-                    //            seven_arm.findPath(parent);
                     if(neighbors[0].size() == 0){
                         std::cout << "no near nodes change" << std::endl;
                         return 0;
@@ -405,45 +443,34 @@ int main(){
         if(i == 0){
             if(!seven_arm.back_trace.empty()){
                 path_ind = seven_arm.back_trace.top();
-//                std::cout << "**** root ****" << std::endl;
-//                std::cout << "root_index: " << path_ind << std::endl;
-                
                 joint_angle = seven_arm.tree.col(path_ind);
                 v_arm.setJointPos(joint_angle - seven_arm.start_angle);
-//                seven_arm.back_trace.pop();
             }else{
                 v_arm.setJointPos(seven_arm.goal_angle - seven_arm.start_angle);
             }
         }
         
         current_joint_angle = current_joint_angle + seven_arm.start_angle;
-//        std::cout << "**** current_joint_angle ****" << std::endl;
-//        std::cout << "current_joint_angle: " << current_joint_angle << std::endl;
-//
-//        std::cout << "**** back_trace ****" << std::endl;
-//        std::cout << "current_joint_angle: " << seven_arm.tree.col(seven_arm.back_trace.top()) << std::endl;
-//
-//        std::cout << "**** norm ****" << std::endl;
-//        std::cout << "norm: " << (current_joint_angle - seven_arm.tree.col(seven_arm.back_trace.top())).norm() << std::endl;
         if(!seven_arm.back_trace.empty()){
             if((current_joint_angle - seven_arm.tree.col(seven_arm.back_trace.top())).norm() < 0.05){
                 if(!seven_arm.back_trace.empty()){
                     seven_arm.back_trace.pop();
                 }
-                if(!seven_arm.back_trace.empty()){
-                    path_ind = seven_arm.back_trace.top();
-    //                std::cout << "**** root ****" << std::endl;
-    //                std::cout << "root_index: " << path_ind << std::endl;
-                    
-                    joint_angle = seven_arm.tree.col(path_ind);
-                    v_arm.setJointPos(joint_angle - seven_arm.start_angle);
-    //                seven_arm.back_trace.pop();
-                }else{
-                    v_arm.setJointPos(seven_arm.goal_angle - seven_arm.start_angle);
-                }
+            }
+            if(!seven_arm.back_trace.empty()){
+                path_ind = seven_arm.back_trace.top();
+                joint_angle = seven_arm.tree.col(path_ind);
+                v_arm.setJointPos(joint_angle - seven_arm.start_angle);
+            }else{
+                v_arm.setJointPos(current_joint_angle - seven_arm.start_angle);
             }
         }
-        
+        std::cout << (current_joint_angle - seven_arm.goal_angle).norm() << std::endl;
+        std::cout << current_joint_angle << std::endl;
+        std::cout << seven_arm.goal_angle << std::endl;
+        if((current_joint_angle - seven_arm.goal_angle).norm() < 0.01){
+            v_arm.setJointPos(seven_arm.goal_angle - seven_arm.start_angle);
+        }
         obs1_position = v.getPosition(obh) + obs1_vel * time_step * obs1_vector / obs1_vector.norm() * i;
         obs3_position = v.getPosition(obstacles[2]) + obs3_vel * time_step * obs3_vector / obs3_vector.norm() * i;
         goal_position = v.getPosition(goal_handle) + goal_vel * time_step * goal_vector / goal_vector.norm() * i;
